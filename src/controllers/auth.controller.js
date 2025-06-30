@@ -9,12 +9,10 @@ const handleRegister = async (req, res) => {
       user,
     });
   } catch (error) {
-    // Erro de validação do Mongoose ou erro de email duplicado
     if (
       error.message.includes("validation failed") ||
       error.message.includes("email já está cadastrado")
     ) {
-      // 409 Conflict é mais semântico para recurso duplicado
       const status = error.message.includes("email já está cadastrado")
         ? 409
         : 400;
@@ -28,6 +26,24 @@ const handleRegister = async (req, res) => {
   }
 };
 
+// Função para login
+const handleLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const { accessToken, refreshToken, user } = await authService.loginUser(email, password);
+    res.status(200).json({
+      message: 'Login bem-sucedido!',
+      accessToken,
+      refreshToken,
+      user: { id: user._id, email: user.email, role: user.role }
+    });
+  } catch (error) {
+    console.error("Erro no login do usuário:", error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
 module.exports = {
   handleRegister,
+  handleLogin
 };

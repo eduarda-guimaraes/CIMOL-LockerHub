@@ -1,4 +1,10 @@
 {
+  "name": "cimol-lockerhub",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js" 
+  },
   "dependencies": {
     "@tanstack/react-query": "^5.81.2",
     "axios": "^1.10.0",
@@ -13,6 +19,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/mongoose": "^5.11.96"
+    "@types/mongoose": "^5.11.96",
+    "nodemon": "^2.0.20"  
   }
 }
