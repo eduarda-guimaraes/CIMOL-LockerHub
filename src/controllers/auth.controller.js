@@ -31,6 +31,12 @@ const handleLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
     const { accessToken, refreshToken, user } = await authService.loginUser(email, password);
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true, // Impede acesso via JavaScript no frontend
+      secure: process.env.NODE_ENV === 'production', // Use HTTPS em produção
+      sameSite: 'strict', // Proteção contra CSRF
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
+    });
     res.status(200).json({
       message: 'Login bem-sucedido!',
       accessToken,
@@ -43,7 +49,18 @@ const handleLogin = async (req, res) => {
   }
 };
 
+const handleRefreshToken = async (req, res) => {
+  const { refreshToken } = req.cookies; // Lê o token do cookie
+  try {
+    const { accessToken } = await authService.refreshAccessToken(refreshToken);
+    res.json({ accessToken });
+  } catch (error) {
+    res.status(401).json({ message: 'Falha na renovação do token.', error: error.message });
+  }
+};
+
 module.exports = {
   handleRegister,
-  handleLogin
+  handleLogin,
+  handleRefreshToken
 };
