@@ -1,7 +1,7 @@
 // CIMOL-LockerHub/src/routes/auth.routes.js
 const express = require("express");
 const router = express.Router();
-const { handleRegister, handleLogin } = require("../controllers/auth.controller");
+const { handleRegister, handleLogin, handleRefreshToken } = require("../controllers/auth.controller");
 
 // @route   POST /api/auth/register
 // @desc    Registra um novo usuário
@@ -12,5 +12,6 @@ router.post("/register", handleRegister);
 // @desc    Login de um usuário e retorno do token
 // @access  Public
 router.post("/login", handleLogin);
+router.post("/refresh", handleRefreshToken);
 
 module.exports = router;

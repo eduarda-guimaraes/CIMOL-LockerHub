@@ -52,7 +52,26 @@ const loginUser = async (email, password) => {
   return { accessToken, refreshToken, user };
 };
 
+const refreshAccessToken = async (token) => {
+  if (!token) {
+    throw new Error('Refresh token não fornecido.');
+  }
+  // Verifica o refresh token
+  const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+  
+  // Gera um novo access token
+  const newAccessToken = jwt.sign(
+    { userId: decoded.userId, role: decoded.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '15m' }
+  );
+
+  return { accessToken: newAccessToken };
+};
+
+
 module.exports = {
   registerUser,
-  loginUser
+  loginUser,
+  refreshAccessToken
 };
