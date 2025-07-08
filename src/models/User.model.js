@@ -1,7 +1,7 @@
-// CIMOL-LockerHub/src/models/User.model.js
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
+// Definição do esquema de Usuário
 const UserSchema = new mongoose.Schema(
   {
     email: {
@@ -16,11 +16,11 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: [true, "A senha é obrigatória."],
       minlength: [8, "A senha deve ter no mínimo 8 caracteres."],
-      select: false, // Impede que a senha seja retornada em queries por padrão
+      select: false, // Impede que a senha seja retornada nas consultas por padrão
     },
     role: {
       type: String,
-      enum: ["admin", "coordinator"], // Conforme a documentação principal do projeto
+      enum: ["admin", "coordinator"], // Definindo as permissões
       default: "coordinator",
     },
     resetPasswordToken: {
@@ -33,25 +33,29 @@ const UserSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, // Adiciona os campos createdAt e updatedAt automaticamente
+    timestamps: true, // Garante que os campos createdAt e updatedAt sejam criados automaticamente
   }
 );
 
-// Middleware (hook) do Mongoose que roda ANTES de salvar o documento
+// Middleware de Mongoose: Criptografar a senha antes de salvar
 UserSchema.pre("save", async function (next) {
-  // Roda esta função apenas se a senha foi modificada (ou é nova)
+  // Verifica se a senha foi modificada ou é nova
   if (!this.isModified("password")) {
     return next();
   }
 
-  // Gera o hash da senha com um custo de processamento de 12
   try {
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
+    const salt = await bcrypt.genSalt(12); // Gerar o salt
+    this.password = await bcrypt.hash(this.password, salt); // Criptografar a senha
     next();
   } catch (error) {
-    next(error);
+    next(error); // Se houver erro, passa para o próximo middleware
   }
 });
+
+// Método para comparar senhas durante o login
+UserSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 module.exports = mongoose.model("User", UserSchema);
