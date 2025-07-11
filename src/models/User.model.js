@@ -1,9 +1,27 @@
-// CIMOL-LockerHub/src/models/User.model.js
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
 const UserSchema = new mongoose.Schema(
   {
+    nome: {
+      type: String,
+      required: [true, "O nome é obrigatório."],
+      trim: true,
+    },
+    curso: {
+      type: String,
+      required: [true, "O curso é obrigatório."],
+      enum: [
+        "Eletrônica",
+        "Eletrotécnica",
+        "Mecânica",
+        "Design de móveis",
+        "Móveis",
+        "Informática",
+        "Química",
+        "Meio Ambiente",
+      ],
+    },
     email: {
       type: String,
       required: [true, "O email é obrigatório."],
@@ -16,11 +34,11 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: [true, "A senha é obrigatória."],
       minlength: [8, "A senha deve ter no mínimo 8 caracteres."],
-      select: false, // Impede que a senha seja retornada em queries por padrão
+      select: false,
     },
     role: {
       type: String,
-      enum: ["admin", "coordinator"], // Conforme a documentação principal do projeto
+      enum: ["admin", "coordinator"],
       default: "coordinator",
     },
     resetPasswordToken: {
@@ -33,18 +51,13 @@ const UserSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, // Adiciona os campos createdAt e updatedAt automaticamente
+    timestamps: true,
   }
 );
 
-// Middleware (hook) do Mongoose que roda ANTES de salvar o documento
+// Criptografar a senha antes de salvar
 UserSchema.pre("save", async function (next) {
-  // Roda esta função apenas se a senha foi modificada (ou é nova)
-  if (!this.isModified("password")) {
-    return next();
-  }
-
-  // Gera o hash da senha com um custo de processamento de 12
+  if (!this.isModified("password")) return next();
   try {
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
@@ -53,5 +66,10 @@ UserSchema.pre("save", async function (next) {
     next(error);
   }
 });
+
+// Método para comparar senhas
+UserSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 module.exports = mongoose.model("User", UserSchema);
