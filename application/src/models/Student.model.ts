@@ -4,6 +4,7 @@ import { ICourse } from "./Course.model"; // Importa a interface do Course
 
 // 1. Interface para o documento Student
 export interface IStudent extends Document {
+  _id: string;
   nome: string;
   matricula: string;
   course: Schema.Types.ObjectId | ICourse; // Referência ao ID do curso ou ao objeto populado

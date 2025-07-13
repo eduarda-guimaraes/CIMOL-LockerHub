@@ -9,52 +9,62 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ILocker } from "@/models/Locker.model";
 import { ICourse } from "@/models/Course.model";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { IStudent } from "@/models/Student.model";
+import { Plus, Edit, Trash2, KeyRound } from "lucide-react";
 
 // --- Tipos e Schemas ---
 const lockerFormSchema = z.object({
   numero: z.string().min(1, { message: "O número é obrigatório." }),
+  // --- MODIFICAÇÃO AQUI: Usando a sintaxe mais simples e compatível ---
   building: z.enum(["A", "B", "C", "D", "E"], {
     message: "Por favor, selecione um prédio válido.",
   }),
-
   courseId: z.string().min(1, { message: "Selecione um curso." }),
 });
 type LockerFormData = z.infer<typeof lockerFormSchema>;
 
-type PopulatedLocker = Omit<ILocker, "courseId"> & {
-  courseId: ICourse;
-};
+const rentalFormSchema = z.object({
+  studentId: z.string().min(1, { message: "Você deve selecionar um aluno." }),
+});
+type RentalFormData = z.infer<typeof rentalFormSchema>;
+
+type PopulatedLocker = Omit<ILocker, "courseId"> & { courseId: ICourse };
 
 // --- API Service Functions ---
-const fetchLockers = async (): Promise<PopulatedLocker[]> => {
-  const { data } = await axios.get("/api/lockers");
-  return data;
-};
-const fetchCourses = async (): Promise<ICourse[]> => {
-  const { data } = await axios.get("/api/courses");
-  return data;
-};
-const createLocker = async (lockerData: LockerFormData) =>
-  axios.post("/api/lockers", lockerData);
+const fetchLockers = async (): Promise<PopulatedLocker[]> =>
+  (await axios.get("/api/lockers")).data;
+const fetchCourses = async (): Promise<ICourse[]> =>
+  (await axios.get("/api/courses")).data;
+const fetchStudents = async (): Promise<IStudent[]> =>
+  (await axios.get("/api/students")).data;
+const createLocker = async (data: LockerFormData) =>
+  (await axios.post("/api/lockers", data)).data;
 const updateLocker = async ({
   id,
-  lockerData,
+  data,
 }: {
   id: string;
-  lockerData: LockerFormData;
-}) => axios.put(`/api/lockers/${id}`, lockerData);
-const deleteLocker = async (id: string) => axios.delete(`/api/lockers/${id}`);
+  data: LockerFormData;
+}) => (await axios.put(`/api/lockers/${id}`, data)).data;
+const deleteLocker = async (id: string) =>
+  (await axios.delete(`/api/lockers/${id}`)).data;
+const createRental = async ({
+  lockerId,
+  studentId,
+}: {
+  lockerId: string;
+  studentId: string;
+}) => (await axios.post("/api/rentals", { lockerId, studentId })).data;
 
 // --- Componente Principal ---
 export default function LockersPage() {
   const queryClient = useQueryClient();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingLocker, setEditingLocker] = useState<PopulatedLocker | null>(
+  const [isLockerModalOpen, setIsLockerModalOpen] = useState(false);
+  const [isRentalModalOpen, setIsRentalModalOpen] = useState(false);
+  const [selectedLocker, setSelectedLocker] = useState<PopulatedLocker | null>(
     null
   );
 
-  // Duas queries: uma para armários, outra para cursos (para o <select>)
   const { data: lockers, isLoading: isLoadingLockers } = useQuery<
     PopulatedLocker[]
   >({ queryKey: ["lockers"], queryFn: fetchLockers });
@@ -62,59 +72,75 @@ export default function LockersPage() {
     queryKey: ["courses"],
     queryFn: fetchCourses,
   });
+  const { data: students, isLoading: isLoadingStudents } = useQuery<IStudent[]>(
+    { queryKey: ["students"], queryFn: fetchStudents }
+  );
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<LockerFormData>({ resolver: zodResolver(lockerFormSchema) });
+  const lockerForm = useForm<LockerFormData>({
+    resolver: zodResolver(lockerFormSchema),
+  });
+  const rentalForm = useForm<RentalFormData>({
+    resolver: zodResolver(rentalFormSchema),
+  });
 
-  const handleMutationSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ["lockers"] });
-    closeModal();
+  const handleMutationSuccess = (queryKeyToInvalidate: string) => () => {
+    queryClient.invalidateQueries({ queryKey: [queryKeyToInvalidate] });
+    setIsLockerModalOpen(false);
+    setIsRentalModalOpen(false);
+    setSelectedLocker(null);
   };
 
-  const createMutation = useMutation({
+  const createLockerMutation = useMutation({
     mutationFn: createLocker,
-    onSuccess: handleMutationSuccess,
+    onSuccess: handleMutationSuccess("lockers"),
   });
-  const updateMutation = useMutation({
+  const updateLockerMutation = useMutation({
     mutationFn: updateLocker,
-    onSuccess: handleMutationSuccess,
+    onSuccess: handleMutationSuccess("lockers"),
   });
-  const deleteMutation = useMutation({
+  const deleteLockerMutation = useMutation({
     mutationFn: deleteLocker,
-    onSuccess: handleMutationSuccess,
+    onSuccess: handleMutationSuccess("lockers"),
+  });
+  const createRentalMutation = useMutation({
+    mutationFn: createRental,
+    onSuccess: handleMutationSuccess("lockers"),
   });
 
-  const openModalForCreate = () => {
-    setEditingLocker(null);
-    reset({ numero: "", building: "A", courseId: "" });
-    setIsModalOpen(true);
-  };
-
-  const openModalForEdit = (locker: PopulatedLocker) => {
-    setEditingLocker(locker);
-    reset({
-      numero: locker.numero,
-      building: locker.building,
-      courseId: locker.courseId._id,
-    });
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingLocker(null);
-    reset();
-  };
-
-  const onSubmit = (data: LockerFormData) => {
-    if (editingLocker) {
-      updateMutation.mutate({ id: editingLocker._id, lockerData: data });
+  const openLockerModal = (locker: PopulatedLocker | null) => {
+    setSelectedLocker(locker);
+    if (locker) {
+      lockerForm.reset({
+        numero: locker.numero,
+        building: locker.building,
+        courseId: locker.courseId._id,
+      });
     } else {
-      createMutation.mutate(data);
+      lockerForm.reset({ numero: "", building: undefined, courseId: "" });
+    }
+    setIsLockerModalOpen(true);
+  };
+
+  const openRentalModal = (locker: PopulatedLocker) => {
+    setSelectedLocker(locker);
+    rentalForm.reset({ studentId: "" });
+    setIsRentalModalOpen(true);
+  };
+
+  const onLockerSubmit = (data: LockerFormData) => {
+    if (selectedLocker) {
+      updateLockerMutation.mutate({ id: selectedLocker._id, data });
+    } else {
+      createLockerMutation.mutate(data);
+    }
+  };
+
+  const onRentalSubmit = (data: RentalFormData) => {
+    if (selectedLocker) {
+      createRentalMutation.mutate({
+        lockerId: selectedLocker._id.toString(),
+        studentId: data.studentId,
+      });
     }
   };
 
@@ -127,7 +153,7 @@ export default function LockersPage() {
           Gerenciamento de Armários
         </h1>
         <button
-          onClick={openModalForCreate}
+          onClick={() => openLockerModal(null)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
         >
           <Plus size={18} /> Adicionar Armário
@@ -182,14 +208,30 @@ export default function LockersPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                    {locker.status === "available" && (
+                      <button
+                        onClick={() => openRentalModal(locker)}
+                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-900 mr-4"
+                      >
+                        <KeyRound size={16} /> Alugar
+                      </button>
+                    )}
+                    {locker.status === "occupied" && (
+                      <button
+                        disabled
+                        className="inline-flex items-center gap-1 text-gray-400 cursor-not-allowed mr-4"
+                      >
+                        Devolver
+                      </button>
+                    )}
                     <button
-                      onClick={() => openModalForEdit(locker)}
+                      onClick={() => openLockerModal(locker)}
                       className="text-indigo-600 hover:text-indigo-900 mr-4"
                     >
                       <Edit size={18} />
                     </button>
                     <button
-                      onClick={() => deleteMutation.mutate(locker._id)}
+                      onClick={() => deleteLockerMutation.mutate(locker._id)}
                       className="text-red-600 hover:text-red-900"
                     >
                       <Trash2 size={18} />
@@ -202,14 +244,17 @@ export default function LockersPage() {
         </div>
       )}
 
-      {/* Modal */}
-      {isModalOpen && (
+      {/* Modal de CRUD de Armário */}
+      {isLockerModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 w-full max-w-md">
             <h2 className="text-2xl font-bold mb-4">
-              {editingLocker ? "Editar Armário" : "Novo Armário"}
+              {selectedLocker ? "Editar Armário" : "Novo Armário"}
             </h2>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form
+              onSubmit={lockerForm.handleSubmit(onLockerSubmit)}
+              className="space-y-4"
+            >
               <div>
                 <label htmlFor="numero" className="block text-sm font-medium">
                   Número
@@ -217,12 +262,12 @@ export default function LockersPage() {
                 <input
                   id="numero"
                   type="text"
-                  {...register("numero")}
+                  {...lockerForm.register("numero")}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
-                {errors.numero && (
+                {lockerForm.formState.errors.numero && (
                   <p className="text-red-500 text-xs mt-1">
-                    {errors.numero.message}
+                    {lockerForm.formState.errors.numero.message}
                   </p>
                 )}
               </div>
@@ -232,18 +277,19 @@ export default function LockersPage() {
                 </label>
                 <select
                   id="building"
-                  {...register("building")}
+                  {...lockerForm.register("building")}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                 >
+                  <option value="">Selecione um prédio</option>
                   {["A", "B", "C", "D", "E"].map((b) => (
                     <option key={b} value={b}>
                       Prédio {b}
                     </option>
                   ))}
                 </select>
-                {errors.building && (
+                {lockerForm.formState.errors.building && (
                   <p className="text-red-500 text-xs mt-1">
-                    {errors.building.message}
+                    {lockerForm.formState.errors.building.message}
                   </p>
                 )}
               </div>
@@ -253,7 +299,7 @@ export default function LockersPage() {
                 </label>
                 <select
                   id="courseId"
-                  {...register("courseId")}
+                  {...lockerForm.register("courseId")}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                 >
                   <option value="">Selecione um curso</option>
@@ -263,16 +309,16 @@ export default function LockersPage() {
                     </option>
                   ))}
                 </select>
-                {errors.courseId && (
+                {lockerForm.formState.errors.courseId && (
                   <p className="text-red-500 text-xs mt-1">
-                    {errors.courseId.message}
+                    {lockerForm.formState.errors.courseId.message}
                   </p>
                 )}
               </div>
               <div className="flex justify-end gap-4 pt-4">
                 <button
                   type="button"
-                  onClick={closeModal}
+                  onClick={() => setIsLockerModalOpen(false)}
                   className="px-4 py-2 bg-gray-200 rounded-md"
                 >
                   Cancelar
@@ -280,13 +326,78 @@ export default function LockersPage() {
                 <button
                   type="submit"
                   disabled={
-                    createMutation.isPending || updateMutation.isPending
+                    createLockerMutation.isPending ||
+                    updateLockerMutation.isPending
                   }
                   className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
                 >
-                  {createMutation.isPending || updateMutation.isPending
+                  {createLockerMutation.isPending ||
+                  updateLockerMutation.isPending
                     ? "Salvando..."
                     : "Salvar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Aluguel */}
+      {isRentalModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-4">
+              Alugar Armário {selectedLocker?.numero}
+            </h2>
+            <form
+              onSubmit={rentalForm.handleSubmit(onRentalSubmit)}
+              className="space-y-4"
+            >
+              <div>
+                <label
+                  htmlFor="studentId"
+                  className="block text-sm font-medium"
+                >
+                  Aluno
+                </label>
+                <select
+                  id="studentId"
+                  {...rentalForm.register("studentId")}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="">Selecione um aluno</option>
+                  {isLoadingStudents ? (
+                    <option>Carregando...</option>
+                  ) : (
+                    students?.map((student) => (
+                      <option key={student._id} value={student._id}>
+                        {student.nome}
+                      </option>
+                    ))
+                  )}
+                </select>
+                {rentalForm.formState.errors.studentId && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {rentalForm.formState.errors.studentId.message}
+                  </p>
+                )}
+              </div>
+              <div className="flex justify-end gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsRentalModalOpen(false)}
+                  className="px-4 py-2 bg-gray-200 rounded-md"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={createRentalMutation.isPending}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
+                >
+                  {createRentalMutation.isPending
+                    ? "Alugando..."
+                    : "Confirmar Aluguel"}
                 </button>
               </div>
             </form>
