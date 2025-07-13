@@ -1,5 +1,6 @@
 // application/src/app/(main)/dashboard/students/page.tsx
 "use client";
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -16,6 +17,9 @@ import {
   StudentFormData,
   PopulatedStudent,
 } from "@/services/student.service";
+// --- MODIFICAÇÃO AQUI: Importando o Modal ---
+import Modal from "@/components/ui/Modal";
+import { ICourse } from "@/models";
 
 export default function StudentsPage() {
   const queryClient = useQueryClient();
@@ -24,11 +28,13 @@ export default function StudentsPage() {
     null
   );
 
-  const { data: students, isLoading: isLoadingStudents } = useQuery({
+  const { data: students, isLoading: isLoadingStudents } = useQuery<
+    PopulatedStudent[]
+  >({
     queryKey: ["students"],
     queryFn: fetchStudents,
   });
-  const { data: courses, isLoading: isLoadingCourses } = useQuery({
+  const { data: courses, isLoading: isLoadingCourses } = useQuery<ICourse[]>({
     queryKey: ["courses"],
     queryFn: fetchCourses,
   });
@@ -39,15 +45,18 @@ export default function StudentsPage() {
     reset,
     formState: { errors },
     setError,
-  } = useForm<StudentFormData>({ resolver: zodResolver(studentFormSchema) });
+  } = useForm<StudentFormData>({
+    resolver: zodResolver(studentFormSchema),
+  });
 
   const handleMutationError = (error: unknown) => {
     if (error instanceof AxiosError && error.response?.status === 409) {
       const message = error.response.data.message || "Valor duplicado.";
-      if (message.includes("matricula"))
+      if (message.includes("matricula")) {
         setError("matricula", { type: "manual", message });
-      else if (message.includes("email"))
+      } else if (message.includes("email")) {
         setError("email", { type: "manual", message });
+      }
     }
   };
 
@@ -90,9 +99,18 @@ export default function StudentsPage() {
     setIsModalOpen(true);
   };
 
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingStudent(null);
+    reset();
+  };
+
   const onSubmit = (data: StudentFormData) => {
-    if (editingStudent) updateMutation.mutate({ id: editingStudent._id, data });
-    else createMutation.mutate(data);
+    if (editingStudent) {
+      updateMutation.mutate({ id: editingStudent._id, data });
+    } else {
+      createMutation.mutate(data);
+    }
   };
 
   const isLoading = isLoadingStudents || isLoadingCourses;
@@ -138,19 +156,19 @@ export default function StudentsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {students?.map((student) => (
                 <tr key={student._id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-black">
                     {student.nome}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
                     {student.matricula}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
                     {student.course?.nome || "N/A"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
                     {student.email || "-"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm ">
                     <button
                       onClick={() => openModalForEdit(student)}
                       className="text-indigo-600 hover:text-indigo-900 mr-4"
@@ -171,148 +189,145 @@ export default function StudentsPage() {
         </div>
       )}
 
-      {isModalOpen && (
-        // --- MODIFICAÇÃO AQUI: Removendo o fundo preto do overlay ---
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 w-full max-w-lg shadow-lg">
-            <h2 className="text-2xl font-bold mb-4 text-gray-900">
-              {editingStudent ? "Editar Aluno" : "Novo Aluno"}
-            </h2>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  {/* --- MODIFICAÇÃO AQUI: Adicionando classe de cor --- */}
-                  <label
-                    htmlFor="nome"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Nome
-                  </label>
-                  <input
-                    id="nome"
-                    type="text"
-                    {...register("nome")}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                  {errors.nome && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.nome.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  {/* --- MODIFICAÇÃO AQUI: Adicionando classe de cor --- */}
-                  <label
-                    htmlFor="matricula"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Matrícula
-                  </label>
-                  <input
-                    id="matricula"
-                    type="text"
-                    {...register("matricula")}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                  {errors.matricula && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.matricula.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div>
-                {/* --- MODIFICAÇÃO AQUI: Adicionando classe de cor --- */}
-                <label
-                  htmlFor="course"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Curso
-                </label>
-                <select
-                  id="course"
-                  {...register("course")}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="">Selecione um curso</option>
-                  {courses?.map((course) => (
-                    <option key={course._id} value={course._id}>
-                      {course.nome}
-                    </option>
-                  ))}
-                </select>
-                {errors.course && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.course.message}
-                  </p>
-                )}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  {/* --- MODIFICAÇÃO AQUI: Adicionando classe de cor --- */}
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Email (Opcional)
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    {...register("email")}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                  {errors.email && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.email.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  {/* --- MODIFICAÇÃO AQUI: Adicionando classe de cor --- */}
-                  <label
-                    htmlFor="telefone"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Telefone (Opcional)
-                  </label>
-                  <input
-                    id="telefone"
-                    type="text"
-                    {...register("telefone")}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                  {errors.telefone && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.telefone.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex justify-end gap-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={
-                    createMutation.isPending || updateMutation.isPending
-                  }
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
-                >
-                  {createMutation.isPending || updateMutation.isPending
-                    ? "Salvando..."
-                    : "Salvar"}
-                </button>
-              </div>
-            </form>
+      {/* --- MODIFICAÇÃO AQUI: Usando o componente Modal --- */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={editingStudent ? "Editar Aluno" : "Novo Aluno"}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              form="student-form"
+              disabled={createMutation.isPending || updateMutation.isPending}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
+            >
+              {createMutation.isPending || updateMutation.isPending
+                ? "Salvando..."
+                : "Salvar"}
+            </button>
+          </>
+        }
+      >
+        <form
+          id="student-form"
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-4"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="nome"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Nome
+              </label>
+              <input
+                id="nome"
+                type="text"
+                {...register("nome")}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+              />
+              {errors.nome && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.nome.message}
+                </p>
+              )}
+            </div>
+            <div>
+              <label
+                htmlFor="matricula"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Matrícula
+              </label>
+              <input
+                id="matricula"
+                type="text"
+                {...register("matricula")}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+              />
+              {errors.matricula && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.matricula.message}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+          <div>
+            <label
+              htmlFor="course"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Curso
+            </label>
+            <select
+              id="course"
+              {...register("course")}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+            >
+              <option value="">Selecione um curso</option>
+              {courses?.map((course) => (
+                <option key={course._id} value={course._id}>
+                  {course.nome}
+                </option>
+              ))}
+            </select>
+            {errors.course && (
+              <p className="text-red-500 text-xs mt-1">
+                {errors.course.message}
+              </p>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Email (Opcional)
+              </label>
+              <input
+                id="email"
+                type="email"
+                {...register("email")}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+              />
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
+            <div>
+              <label
+                htmlFor="telefone"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Telefone (Opcional)
+              </label>
+              <input
+                id="telefone"
+                type="text"
+                {...register("telefone")}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+              />
+              {errors.telefone && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.telefone.message}
+                </p>
+              )}
+            </div>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 // application/src/app/(main)/dashboard/lockers/page.tsx
 "use client";
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -20,6 +21,17 @@ import {
   RentalFormData,
   PopulatedLocker,
 } from "@/services/locker.service";
+import Modal from "@/components/ui/Modal";
+import { ICourse, IStudent } from "@/models";
+
+// --- MODIFICAÇÃO AQUI: Função utilitária para formatar a data para o input ---
+const getTodayDateString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export default function LockersPage() {
   const queryClient = useQueryClient();
@@ -29,18 +41,16 @@ export default function LockersPage() {
     null
   );
 
-  const { data: lockers, isLoading: isLoadingLockers } = useQuery({
-    queryKey: ["lockers"],
-    queryFn: fetchLockers,
-  });
-  const { data: courses, isLoading: isLoadingCourses } = useQuery({
+  const { data: lockers, isLoading: isLoadingLockers } = useQuery<
+    PopulatedLocker[]
+  >({ queryKey: ["lockers"], queryFn: fetchLockers });
+  const { data: courses, isLoading: isLoadingCourses } = useQuery<ICourse[]>({
     queryKey: ["courses"],
     queryFn: fetchCourses,
   });
-  const { data: students, isLoading: isLoadingStudents } = useQuery({
-    queryKey: ["students"],
-    queryFn: fetchStudents,
-  });
+  const { data: students, isLoading: isLoadingStudents } = useQuery<IStudent[]>(
+    { queryKey: ["students"], queryFn: fetchStudents }
+  );
 
   const lockerForm = useForm<LockerFormData>({
     resolver: zodResolver(lockerFormSchema),
@@ -51,9 +61,7 @@ export default function LockersPage() {
 
   const handleMutationSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ["lockers"] });
-    setIsLockerModalOpen(false);
-    setIsRentalModalOpen(false);
-    setSelectedLocker(null);
+    closeModals();
   };
 
   const createLockerMutation = useMutation({
@@ -69,9 +77,10 @@ export default function LockersPage() {
     mutationFn: deleteLocker,
     onSuccess: handleMutationSuccess,
   });
+  // --- MODIFICAÇÃO AQUI: Atualizando a assinatura da mutação ---
   const createRentalMutation = useMutation({
-    mutationFn: (vars: { lockerId: string; studentId: string }) =>
-      createRental(vars.lockerId, vars.studentId),
+    mutationFn: (vars: { lockerId: string; rentalData: RentalFormData }) =>
+      createRental(vars.lockerId, vars.rentalData),
     onSuccess: handleMutationSuccess,
   });
   const returnRentalMutation = useMutation({
@@ -95,8 +104,19 @@ export default function LockersPage() {
 
   const openRentalModal = (locker: PopulatedLocker) => {
     setSelectedLocker(locker);
-    rentalForm.reset({ studentId: "" });
+    // --- MODIFICAÇÃO AQUI: Resetando o formulário com a data de hoje ---
+    rentalForm.reset({
+      studentId: "",
+      dataInicio: getTodayDateString(),
+      dataPrevista: "",
+    });
     setIsRentalModalOpen(true);
+  };
+
+  const closeModals = () => {
+    setIsLockerModalOpen(false);
+    setIsRentalModalOpen(false);
+    setSelectedLocker(null);
   };
 
   const onLockerSubmit = (data: LockerFormData) => {
@@ -107,11 +127,12 @@ export default function LockersPage() {
     }
   };
 
+  // --- MODIFICAÇÃO AQUI: Atualizando a lógica de submissão do aluguel ---
   const onRentalSubmit = (data: RentalFormData) => {
     if (selectedLocker) {
       createRentalMutation.mutate({
         lockerId: selectedLocker._id,
-        studentId: data.studentId,
+        rentalData: data,
       });
     }
   };
@@ -147,6 +168,7 @@ export default function LockersPage() {
       ) : (
         <div className="bg-white shadow rounded-lg overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
+            {/* ... o código da tabela permanece o mesmo ... */}
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -169,13 +191,13 @@ export default function LockersPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {lockers?.map((locker) => (
                 <tr key={locker._id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-black">
                     {locker.numero}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
                     {locker.building}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
                     {locker.courseId?.nome || "N/A"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -234,166 +256,216 @@ export default function LockersPage() {
         </div>
       )}
 
-      {/* Modal de CRUD de Armário */}
-      {isLockerModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-4">
-              {selectedLocker ? "Editar Armário" : "Novo Armário"}
-            </h2>
-            <form
-              onSubmit={lockerForm.handleSubmit(onLockerSubmit)}
-              className="space-y-4"
+      {/* ... Modal de CRUD de Armário permanece o mesmo ... */}
+      <Modal
+        isOpen={isLockerModalOpen}
+        onClose={closeModals}
+        title={selectedLocker ? "Editar Armário" : "Novo Armário"}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={closeModals}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
             >
-              <div>
-                <label htmlFor="numero" className="block text-sm font-medium">
-                  Número
-                </label>
-                <input
-                  id="numero"
-                  type="text"
-                  {...lockerForm.register("numero")}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-                {lockerForm.formState.errors.numero && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {lockerForm.formState.errors.numero.message}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label htmlFor="building" className="block text-sm font-medium">
-                  Prédio
-                </label>
-                <select
-                  id="building"
-                  {...lockerForm.register("building")}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="">Selecione um prédio</option>
-                  {["A", "B", "C", "D", "E"].map((b) => (
-                    <option key={b} value={b}>
-                      Prédio {b}
-                    </option>
-                  ))}
-                </select>
-                {lockerForm.formState.errors.building && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {lockerForm.formState.errors.building.message}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label htmlFor="courseId" className="block text-sm font-medium">
-                  Curso
-                </label>
-                <select
-                  id="courseId"
-                  {...lockerForm.register("courseId")}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="">Selecione um curso</option>
-                  {courses?.map((course) => (
-                    <option key={course._id} value={course._id}>
-                      {course.nome}
-                    </option>
-                  ))}
-                </select>
-                {lockerForm.formState.errors.courseId && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {lockerForm.formState.errors.courseId.message}
-                  </p>
-                )}
-              </div>
-              <div className="flex justify-end gap-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsLockerModalOpen(false)}
-                  className="px-4 py-2 bg-gray-200 rounded-md"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={
-                    createLockerMutation.isPending ||
-                    updateLockerMutation.isPending
-                  }
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
-                >
-                  {createLockerMutation.isPending ||
-                  updateLockerMutation.isPending
-                    ? "Salvando..."
-                    : "Salvar"}
-                </button>
-              </div>
-            </form>
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              form="locker-form"
+              disabled={
+                createLockerMutation.isPending || updateLockerMutation.isPending
+              }
+              className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
+            >
+              {createLockerMutation.isPending || updateLockerMutation.isPending
+                ? "Salvando..."
+                : "Salvar"}
+            </button>
+          </>
+        }
+      >
+        <form
+          id="locker-form"
+          onSubmit={lockerForm.handleSubmit(onLockerSubmit)}
+          className="space-y-4"
+        >
+          <div>
+            <label
+              htmlFor="numero"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Número
+            </label>
+            <input
+              id="numero"
+              type="text"
+              {...lockerForm.register("numero")}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+            />
+            {lockerForm.formState.errors.numero && (
+              <p className="text-red-500 text-xs mt-1">
+                {lockerForm.formState.errors.numero.message}
+              </p>
+            )}
           </div>
-        </div>
-      )}
+          <div>
+            <label
+              htmlFor="building"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Prédio
+            </label>
+            <select
+              id="building"
+              {...lockerForm.register("building")}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+            >
+              <option value="">Selecione um prédio</option>
+              {["A", "B", "C", "D", "E"].map((b) => (
+                <option key={b} value={b}>
+                  Prédio {b}
+                </option>
+              ))}
+            </select>
+            {lockerForm.formState.errors.building && (
+              <p className="text-red-500 text-xs mt-1">
+                {lockerForm.formState.errors.building.message}
+              </p>
+            )}
+          </div>
+          <div>
+            <label
+              htmlFor="courseId"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Curso
+            </label>
+            <select
+              id="courseId"
+              {...lockerForm.register("courseId")}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+            >
+              <option value="">Selecione um curso</option>
+              {courses?.map((course) => (
+                <option key={course._id} value={course._id}>
+                  {course.nome}
+                </option>
+              ))}
+            </select>
+            {lockerForm.formState.errors.courseId && (
+              <p className="text-red-500 text-xs mt-1">
+                {lockerForm.formState.errors.courseId.message}
+              </p>
+            )}
+          </div>
+        </form>
+      </Modal>
 
-      {/* Modal de Aluguel */}
-      {isRentalModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-4">
-              Alugar Armário {selectedLocker?.numero}
-            </h2>
-            <form
-              onSubmit={rentalForm.handleSubmit(onRentalSubmit)}
-              className="space-y-4"
+      {/* --- MODIFICAÇÃO AQUI: Modal de Aluguel com campos de data --- */}
+      <Modal
+        isOpen={isRentalModalOpen}
+        onClose={closeModals}
+        title={`Alugar Armário ${selectedLocker?.numero}`}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={closeModals}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
             >
-              <div>
-                <label
-                  htmlFor="studentId"
-                  className="block text-sm font-medium"
-                >
-                  Aluno
-                </label>
-                <select
-                  id="studentId"
-                  {...rentalForm.register("studentId")}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="">Selecione um aluno</option>
-                  {isLoadingStudents ? (
-                    <option>Carregando...</option>
-                  ) : (
-                    students?.map((student) => (
-                      <option key={student._id} value={student._id}>
-                        {student.nome}
-                      </option>
-                    ))
-                  )}
-                </select>
-                {rentalForm.formState.errors.studentId && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {rentalForm.formState.errors.studentId.message}
-                  </p>
-                )}
-              </div>
-              <div className="flex justify-end gap-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsRentalModalOpen(false)}
-                  className="px-4 py-2 bg-gray-200 rounded-md"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={createRentalMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
-                >
-                  {createRentalMutation.isPending
-                    ? "Alugando..."
-                    : "Confirmar Aluguel"}
-                </button>
-              </div>
-            </form>
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              form="rental-form"
+              disabled={createRentalMutation.isPending}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
+            >
+              {createRentalMutation.isPending
+                ? "Alugando..."
+                : "Confirmar Aluguel"}
+            </button>
+          </>
+        }
+      >
+        <form
+          id="rental-form"
+          onSubmit={rentalForm.handleSubmit(onRentalSubmit)}
+          className="space-y-4"
+        >
+          <div>
+            <label
+              htmlFor="studentId"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Aluno
+            </label>
+            <select
+              id="studentId"
+              {...rentalForm.register("studentId")}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+            >
+              <option value="">Selecione um aluno</option>
+              {isLoadingStudents ? (
+                <option>Carregando...</option>
+              ) : (
+                students?.map((student) => (
+                  <option key={student._id} value={student._id}>
+                    {student.nome}
+                  </option>
+                ))
+              )}
+            </select>
+            {rentalForm.formState.errors.studentId && (
+              <p className="text-red-500 text-xs mt-1">
+                {rentalForm.formState.errors.studentId.message}
+              </p>
+            )}
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="dataInicio"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Data de Início
+              </label>
+              <input
+                id="dataInicio"
+                type="date"
+                {...rentalForm.register("dataInicio")}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+              />
+              {rentalForm.formState.errors.dataInicio && (
+                <p className="text-red-500 text-xs mt-1">
+                  {rentalForm.formState.errors.dataInicio.message}
+                </p>
+              )}
+            </div>
+            <div>
+              <label
+                htmlFor="dataPrevista"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Devolução Prevista
+              </label>
+              <input
+                id="dataPrevista"
+                type="date"
+                {...rentalForm.register("dataPrevista")}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+              />
+              {rentalForm.formState.errors.dataPrevista && (
+                <p className="text-red-500 text-xs mt-1">
+                  {rentalForm.formState.errors.dataPrevista.message}
+                </p>
+              )}
+            </div>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -1,33 +1,33 @@
 // application/src/models/Rental.model.ts
 import mongoose, { Document, Schema, model } from "mongoose";
-import { ILocker } from "./Locker.model"; // Importa a interface do Locker
-import { IStudent } from "./Student.model"; // Importa a interface do Student
+import { ILocker } from "./Locker.model";
+import { IStudent } from "./Student.model";
+import "./Locker.model"; // --- MODIFICAÇÃO AQUI: Garante que o modelo Locker seja registrado
+import "./Student.model"; // --- MODIFICAÇÃO AQUI: Garante que o modelo Student seja registrado
 
-// 1. Interface para o documento Rental
 export interface IRental extends Document {
-  lockerId: Schema.Types.ObjectId | ILocker; // Referência ao ID do armário ou ao objeto populado
-  studentId: Schema.Types.ObjectId | IStudent; // Referência ao ID do estudante ou ao objeto populado
+  lockerId: Schema.Types.ObjectId | ILocker;
+  studentId: Schema.Types.ObjectId | IStudent;
   datas: {
     inicio: Date;
     prevista: Date;
-    real?: Date; // Opcional, pois só existe após a devolução
+    real?: Date;
   };
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// 2. Schema do Mongoose
 const RentalSchema = new Schema<IRental>(
   {
     lockerId: {
       type: Schema.Types.ObjectId,
-      ref: "Locker",
+      ref: "Locker", // Precisa do modelo 'Locker'
       required: [true, "O armário é obrigatório."],
     },
     studentId: {
       type: Schema.Types.ObjectId,
-      ref: "Student",
+      ref: "Student", // Precisa do modelo 'Student'
       required: [true, "O estudante é obrigatório."],
     },
     datas: {
@@ -53,6 +53,5 @@ const RentalSchema = new Schema<IRental>(
   }
 );
 
-// 3. Exportar o modelo
 const Rental = mongoose.models.Rental || model<IRental>("Rental", RentalSchema);
 export default Rental;

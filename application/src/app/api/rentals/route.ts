@@ -7,31 +7,37 @@ import Student from "@/models/Student.model";
 import mongoose from "mongoose";
 import { z } from "zod";
 
+// --- MODIFICAÇÃO AQUI: Adicionando datas ao schema de validação ---
 const rentalSchema = z.object({
   lockerId: z.string().min(1, "ID do armário é obrigatório."),
   studentId: z.string().min(1, "ID do aluno é obrigatório."),
+  // As datas virão como string do formulário (ex: '2024-08-01')
+  dataInicio: z.string().min(1, "A data de início é obrigatória."),
+  dataPrevista: z
+    .string()
+    .min(1, "A data de devolução prevista é obrigatória."),
 });
 
 export async function POST(req: NextRequest) {
+  await connectDB();
+
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    await connectDB();
     const body = await req.json();
     const validation = rentalSchema.safeParse(body);
 
     if (!validation.success) {
-      await session.abortTransaction();
       return NextResponse.json(
         { errors: validation.error.flatten() },
         { status: 400 }
       );
     }
 
-    const { lockerId, studentId } = validation.data;
+    // --- MODIFICAÇÃO AQUI: Capturando as novas datas ---
+    const { lockerId, studentId, dataInicio, dataPrevista } = validation.data;
 
-    // --- Validações de Negócio Dentro da Transação ---
     const locker = await Locker.findById(lockerId).session(session);
     if (!locker) {
       throw new Error("Armário não encontrado.");
@@ -53,25 +59,22 @@ export async function POST(req: NextRequest) {
       throw new Error("Este aluno já possui um aluguel ativo.");
     }
 
-    // --- Operações de Banco de Dados ---
-    // 1. Atualizar o status do armário
     locker.status = "occupied";
     await locker.save({ session });
 
-    // 2. Criar o novo registro de aluguel
+    // --- MODIFICAÇÃO AQUI: Usando as datas fornecidas para criar o aluguel ---
     const newRental = new Rental({
       lockerId,
       studentId,
       datas: {
-        inicio: new Date(),
-        // Regra de negócio: aluguel válido até o final do ano letivo
-        prevista: new Date(new Date().getFullYear(), 11, 31),
+        // Convertendo as strings para objetos Date
+        inicio: new Date(dataInicio),
+        prevista: new Date(dataPrevista),
       },
       isActive: true,
     });
     await newRental.save({ session });
 
-    // Se tudo deu certo, commita a transação
     await session.commitTransaction();
 
     return NextResponse.json(
@@ -87,9 +90,15 @@ export async function POST(req: NextRequest) {
       message = error.message;
     }
 
-    return NextResponse.json({ message }, { status: 400 });
+    const statusCode =
+      error instanceof Error &&
+      (error.message.includes("disponível") ||
+        error.message.includes("aluguel ativo"))
+        ? 409
+        : 500;
+
+    return NextResponse.json({ message }, { status: statusCode });
   } finally {
-    // Sempre finaliza a sessão
     session.endSession();
   }
 }

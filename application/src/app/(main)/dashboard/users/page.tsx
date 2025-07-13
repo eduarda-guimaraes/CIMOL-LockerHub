@@ -1,5 +1,6 @@
 // application/src/app/(main)/dashboard/users/page.tsx
 "use client";
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -19,6 +20,8 @@ import {
   UpdateUserFormData,
   PopulatedUser,
 } from "@/services/user.service";
+import Modal from "@/components/ui/Modal";
+import { ICourse } from "@/models";
 
 export default function UsersPage() {
   const { user: loggedInUser } = useAuth();
@@ -26,11 +29,11 @@ export default function UsersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<PopulatedUser | null>(null);
 
-  const { data: users, isLoading: isLoadingUsers } = useQuery({
+  const { data: users, isLoading: isLoadingUsers } = useQuery<PopulatedUser[]>({
     queryKey: ["users"],
     queryFn: fetchUsers,
   });
-  const { data: courses, isLoading: isLoadingCourses } = useQuery({
+  const { data: courses, isLoading: isLoadingCourses } = useQuery<ICourse[]>({
     queryKey: ["courses"],
     queryFn: fetchCourses,
   });
@@ -48,7 +51,7 @@ export default function UsersPage() {
 
   const handleSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ["users"] });
-    setIsModalOpen(false);
+    closeModal();
   };
 
   const createMutation = useMutation({
@@ -87,6 +90,12 @@ export default function UsersPage() {
       role: user.role,
     });
     setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingUser(null);
+    reset();
   };
 
   const onSubmit = (data: CreateUserFormData | UpdateUserFormData) => {
@@ -144,16 +153,16 @@ export default function UsersPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {users?.map((user) => (
                   <tr key={user._id.toString()}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-black">
                       {user.nome}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
                       {user.email}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
                       {user.courseId?.nome || "N/A"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
                       {user.role}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
@@ -180,134 +189,146 @@ export default function UsersPage() {
           </div>
         )}
 
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-8 w-full max-w-md">
-              <h2 className="text-2xl font-bold mb-4">
-                {editingUser ? "Editar Usuário" : "Novo Usuário"}
-              </h2>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div>
-                  <label htmlFor="nome" className="block text-sm font-medium">
-                    Nome
-                  </label>
-                  <input
-                    id="nome"
-                    type="text"
-                    {...register("nome")}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                  {errors.nome && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.nome.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium">
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    {...register("email")}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                  {errors.email && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.email.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-medium"
-                  >
-                    Senha
-                  </label>
-                  <input
-                    id="password"
-                    type="password"
-                    {...register("password")}
-                    placeholder={
-                      editingUser ? "Deixe em branco para não alterar" : ""
-                    }
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                  {errors.password && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.password.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label
-                    htmlFor="courseId"
-                    className="block text-sm font-medium"
-                  >
-                    Curso
-                  </label>
-                  <select
-                    id="courseId"
-                    {...register("courseId")}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="">Selecione um curso</option>
-                    {courses?.map((course) => (
-                      <option key={course._id} value={course._id}>
-                        {course.nome}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.courseId && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.courseId.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label htmlFor="role" className="block text-sm font-medium">
-                    Role
-                  </label>
-                  <select
-                    id="role"
-                    {...register("role")}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="coordinator">Coordinator</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                  {errors.role && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.role.message}
-                    </p>
-                  )}
-                </div>
-                <div className="flex justify-end gap-4 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 bg-gray-200 rounded-md"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={
-                      createMutation.isPending || updateMutation.isPending
-                    }
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
-                  >
-                    {createMutation.isPending || updateMutation.isPending
-                      ? "Salvando..."
-                      : "Salvar"}
-                  </button>
-                </div>
-              </form>
+        {/* --- MODIFICAÇÃO AQUI: Usando o componente Modal --- */}
+        <Modal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          title={editingUser ? "Editar Usuário" : "Novo Usuário"}
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="user-form"
+                disabled={createMutation.isPending || updateMutation.isPending}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
+              >
+                {createMutation.isPending || updateMutation.isPending
+                  ? "Salvando..."
+                  : "Salvar"}
+              </button>
+            </>
+          }
+        >
+          <form
+            id="user-form"
+            onSubmit={handleSubmit(onSubmit)}
+            className="space-y-4"
+          >
+            <div>
+              <label
+                htmlFor="nome"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Nome
+              </label>
+              <input
+                id="nome"
+                type="text"
+                {...register("nome")}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+              />
+              {errors.nome && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.nome.message}
+                </p>
+              )}
             </div>
-          </div>
-        )}
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                {...register("email")}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+              />
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Senha
+              </label>
+              <input
+                id="password"
+                type="password"
+                {...register("password")}
+                placeholder={
+                  editingUser ? "Deixe em branco para não alterar" : ""
+                }
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+              />
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+            <div>
+              <label
+                htmlFor="courseId"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Curso
+              </label>
+              <select
+                id="courseId"
+                {...register("courseId")}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+              >
+                <option value="">Selecione um curso</option>
+                {courses?.map((course) => (
+                  <option key={course._id} value={course._id}>
+                    {course.nome}
+                  </option>
+                ))}
+              </select>
+              {errors.courseId && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.courseId.message}
+                </p>
+              )}
+            </div>
+            <div>
+              <label
+                htmlFor="role"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Role
+              </label>
+              <select
+                id="role"
+                {...register("role")}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-black"
+              >
+                <option value="coordinator">Coordinator</option>
+                <option value="admin">Admin</option>
+              </select>
+              {errors.role && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.role.message}
+                </p>
+              )}
+            </div>
+          </form>
+        </Modal>
       </div>
     </AdminProtectedRoute>
   );

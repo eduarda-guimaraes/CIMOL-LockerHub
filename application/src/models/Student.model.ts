@@ -1,20 +1,19 @@
 // application/src/models/Student.model.ts
 import mongoose, { Document, Schema, model } from "mongoose";
 import { ICourse } from "./Course.model";
+import "./Course.model"; // --- MODIFICAÇÃO AQUI: Garante que o modelo Course seja registrado
 
-// --- MODIFICAÇÃO AQUI: Adicionando novos campos à interface ---
 export interface IStudent extends Document {
   _id: string;
   nome: string;
   matricula: string;
   course: Schema.Types.ObjectId | ICourse;
-  email?: string; // Opcional
-  telefone?: string; // Opcional
+  email?: string;
+  telefone?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// --- MODIFICAÇÃO AQUI: Atualizando o Schema ---
 const StudentSchema = new Schema<IStudent>(
   {
     nome: {
@@ -30,18 +29,15 @@ const StudentSchema = new Schema<IStudent>(
     },
     course: {
       type: Schema.Types.ObjectId,
-      ref: "Course",
+      ref: "Course", // Esta referência precisa que o modelo 'Course' esteja registrado
       required: [true, "O curso do estudante é obrigatório."],
     },
     email: {
       type: String,
       unique: true,
-      // 'sparse: true' permite múltiplos documentos com valor nulo,
-      // mas garante que, se um email for fornecido, ele seja único.
       sparse: true,
       trim: true,
       lowercase: true,
-      // Validação de formato de email
       match: [/.+\@.+\..+/, "Por favor, insira um email válido."],
     },
     telefone: {

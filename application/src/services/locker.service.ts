@@ -1,6 +1,5 @@
 // application/src/services/locker.service.ts
 import api from "@/lib/api";
-// --- MODIFICAÇÃO AQUI: Importação corrigida para usar o barrel file ---
 import { ILocker, ICourse, IRental } from "@/models";
 import { z } from "zod";
 
@@ -11,8 +10,15 @@ export const lockerFormSchema = z.object({
 });
 export type LockerFormData = z.infer<typeof lockerFormSchema>;
 
+// --- MODIFICAÇÃO AQUI: Adicionando os campos de data ao schema e tipo do formulário de aluguel ---
 export const rentalFormSchema = z.object({
   studentId: z.string().min(1, { message: "Você deve selecionar um aluno." }),
+  dataInicio: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "A data de início é obrigatória.",
+  }),
+  dataPrevista: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "A data de devolução prevista é obrigatória.",
+  }),
 });
 export type RentalFormData = z.infer<typeof rentalFormSchema>;
 
@@ -29,7 +35,21 @@ export const updateLocker = async (id: string, data: LockerFormData) =>
   (await api.put(`/api/lockers/${id}`, data)).data;
 export const deleteLocker = async (id: string) =>
   (await api.delete(`/api/lockers/${id}`)).data;
-export const createRental = async (lockerId: string, studentId: string) =>
-  (await api.post("/api/rentals", { lockerId, studentId })).data;
-export const returnRental = async (rentalId: string) =>
-  (await api.patch(`/api/rentals/${rentalId}/return`)).data;
+
+// --- MODIFICAÇÃO AQUI: Atualizando a assinatura e o corpo da função createRental ---
+export const createRental = async (
+  lockerId: string,
+  rentalData: RentalFormData
+) => {
+  const payload = {
+    lockerId,
+    studentId: rentalData.studentId,
+    dataInicio: rentalData.dataInicio,
+    dataPrevista: rentalData.dataPrevista,
+  };
+  return (await api.post("/api/rentals", payload)).data;
+};
+
+export const returnRental = async (rentalId: string) => {
+  return (await api.patch(`/api/rentals/${rentalId}`)).data;
+};

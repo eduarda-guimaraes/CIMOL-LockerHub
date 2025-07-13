@@ -1,15 +1,24 @@
-// application/src/app/api/rentals/[rentalId]/return/route.ts
-import { NextResponse } from "next/server";
+// application/src/app/api/rentals/[id]/route.ts
+
+import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Locker from "@/models/Locker.model";
 import Rental from "@/models/Rental.model";
 import mongoose from "mongoose";
+import { withAuth } from "@/lib/auth/withAuth";
+import { IUser } from "@/models/User.model";
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: { rentalId: string } }
-) {
-  const { rentalId } = params;
+// --- MODIFICAÇÃO AQUI: A solução definitiva e explícita ---
+// O handler recebe o 'context' como terceiro argumento, vindo do HOC 'withAuth'.
+const returnRentalHandler = async (
+  _req: NextRequest,
+  _user: IUser,
+  context: { params: { id: string } }
+) => {
+  // Desestruturamos 'params' do 'context' e então 'id' de 'params'.
+  // Esta é a forma mais segura e recomendada pela documentação.
+  const { id: rentalId } = context.params;
+
   if (!rentalId) {
     return NextResponse.json(
       { message: "ID do aluguel é obrigatório." },
@@ -17,12 +26,11 @@ export async function PATCH(
     );
   }
 
+  await connectDB();
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    await connectDB();
-
     const rental = await Rental.findById(rentalId).session(session);
     if (!rental) {
       throw new Error("Registro de aluguel não encontrado.");
@@ -33,18 +41,17 @@ export async function PATCH(
 
     const locker = await Locker.findById(rental.lockerId).session(session);
     if (!locker) {
-      // Isso indica um estado inconsistente, mas tratamos por segurança
-      throw new Error("Armário associado ao aluguel não foi encontrado.");
+      console.warn(
+        `Armário ${rental.lockerId} não encontrado durante a devolução. Marcando aluguel como inativo mesmo assim.`
+      );
+    } else {
+      locker.status = "available";
+      await locker.save({ session });
     }
 
-    // Atualizar o aluguel
     rental.isActive = false;
     rental.datas.real = new Date();
     await rental.save({ session });
-
-    // Atualizar o armário
-    locker.status = "available";
-    await locker.save({ session });
 
     await session.commitTransaction();
     return NextResponse.json({ message: "Devolução realizada com sucesso!" });
@@ -61,4 +68,6 @@ export async function PATCH(
   } finally {
     session.endSession();
   }
-}
+};
+
+export const PATCH = withAuth(returnRentalHandler);
