@@ -16,10 +16,68 @@ const lockerSchema = z.object({
 export async function GET() {
   try {
     await connectDB();
-    // Usamos .populate() para buscar os dados do curso relacionado
-    const lockers = await Locker.find({})
-      .populate("courseId", "nome codigo") // Seleciona apenas os campos 'nome' e 'codigo' do curso
-      .sort({ numero: 1 });
+
+    const lockers = await Locker.aggregate([
+      // Passo 1: Fazer um "join" com a coleção de aluguéis
+      {
+        $lookup: {
+          from: "rentals", // A coleção de aluguéis
+          let: { locker_id: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$lockerId", "$$locker_id"] },
+                    { $eq: ["$isActive", true] }, // Apenas aluguéis ativos
+                  ],
+                },
+              },
+            },
+          ],
+          as: "activeRental", // O resultado do join
+        },
+      },
+      // Passo 2: Desconstruir o array (haverá 0 ou 1 item)
+      {
+        $unwind: {
+          path: "$activeRental",
+          preserveNullAndEmptyArrays: true, // Mantém armários sem aluguel ativo
+        },
+      },
+      // Passo 3: Fazer um "join" com a coleção de cursos
+      {
+        $lookup: {
+          from: "courses",
+          localField: "courseId",
+          foreignField: "_id",
+          as: "courseDetails",
+        },
+      },
+      // Passo 4: Desconstruir o array de curso
+      {
+        $unwind: {
+          path: "$courseDetails",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      // Passo 5: Projetar o formato final do objeto
+      {
+        $project: {
+          _id: 1,
+          numero: 1,
+          status: 1,
+          building: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          courseId: "$courseDetails", // Substitui o ID pelo objeto populado
+          activeRental: 1, // Inclui o objeto de aluguel ativo
+        },
+      },
+      // Passo 6: Ordenar
+      { $sort: { numero: 1 } },
+    ]);
+
     return NextResponse.json(lockers, { status: 200 });
   } catch (error) {
     console.error("Erro ao buscar armários:", error);

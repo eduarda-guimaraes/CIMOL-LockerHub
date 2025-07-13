@@ -10,12 +10,12 @@ import { z } from "zod";
 import { ILocker } from "@/models/Locker.model";
 import { ICourse } from "@/models/Course.model";
 import { IStudent } from "@/models/Student.model";
-import { Plus, Edit, Trash2, KeyRound } from "lucide-react";
+import { IRental } from "@/models/Rental.model";
+import { Plus, Edit, Trash2, KeyRound, Undo2 } from "lucide-react";
 
 // --- Tipos e Schemas ---
 const lockerFormSchema = z.object({
   numero: z.string().min(1, { message: "O número é obrigatório." }),
-  // --- MODIFICAÇÃO AQUI: Usando a sintaxe mais simples e compatível ---
   building: z.enum(["A", "B", "C", "D", "E"], {
     message: "Por favor, selecione um prédio válido.",
   }),
@@ -28,7 +28,10 @@ const rentalFormSchema = z.object({
 });
 type RentalFormData = z.infer<typeof rentalFormSchema>;
 
-type PopulatedLocker = Omit<ILocker, "courseId"> & { courseId: ICourse };
+type PopulatedLocker = Omit<ILocker, "courseId"> & {
+  courseId: ICourse;
+  activeRental?: IRental;
+};
 
 // --- API Service Functions ---
 const fetchLockers = async (): Promise<PopulatedLocker[]> =>
@@ -55,6 +58,8 @@ const createRental = async ({
   lockerId: string;
   studentId: string;
 }) => (await axios.post("/api/rentals", { lockerId, studentId })).data;
+const returnRental = async (rentalId: string) =>
+  (await axios.patch(`/api/rentals/${rentalId}/return`)).data;
 
 // --- Componente Principal ---
 export default function LockersPage() {
@@ -106,6 +111,10 @@ export default function LockersPage() {
     mutationFn: createRental,
     onSuccess: handleMutationSuccess("lockers"),
   });
+  const returnRentalMutation = useMutation({
+    mutationFn: returnRental,
+    onSuccess: handleMutationSuccess("lockers"),
+  });
 
   const openLockerModal = (locker: PopulatedLocker | null) => {
     setSelectedLocker(locker);
@@ -138,9 +147,19 @@ export default function LockersPage() {
   const onRentalSubmit = (data: RentalFormData) => {
     if (selectedLocker) {
       createRentalMutation.mutate({
-        lockerId: selectedLocker._id.toString(),
+        lockerId: selectedLocker._id,
         studentId: data.studentId,
       });
+    }
+  };
+
+  const handleReturn = (rentalId: string) => {
+    if (
+      window.confirm(
+        "Tem certeza que deseja registrar a devolução deste armário?"
+      )
+    ) {
+      returnRentalMutation.mutate(rentalId);
     }
   };
 
@@ -216,12 +235,20 @@ export default function LockersPage() {
                         <KeyRound size={16} /> Alugar
                       </button>
                     )}
-                    {locker.status === "occupied" && (
+                    {locker.status === "occupied" && locker.activeRental && (
                       <button
-                        disabled
-                        className="inline-flex items-center gap-1 text-gray-400 cursor-not-allowed mr-4"
+                        onClick={() => {
+                          if (
+                            locker.activeRental &&
+                            typeof locker.activeRental._id === "string"
+                          ) {
+                            handleReturn(locker.activeRental._id);
+                          }
+                        }}
+                        disabled={returnRentalMutation.isPending}
+                        className="inline-flex items-center gap-1 text-orange-600 hover:text-orange-900 mr-4 disabled:opacity-50"
                       >
-                        Devolver
+                        <Undo2 size={16} /> Devolver
                       </button>
                     )}
                     <button
