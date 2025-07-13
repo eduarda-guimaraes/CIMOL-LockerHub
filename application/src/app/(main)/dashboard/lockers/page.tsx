@@ -1,68 +1,26 @@
 // application/src/app/(main)/dashboard/lockers/page.tsx
 "use client";
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-// --- MODIFICAÇÃO AQUI ---
-import api from "@/lib/api"; // Usando a instância centralizada
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { ILocker } from "@/models/Locker.model";
-import { ICourse } from "@/models/Course.model";
-import { IStudent } from "@/models/Student.model";
-import { IRental } from "@/models/Rental.model";
 import { Plus, Edit, Trash2, KeyRound, Undo2 } from "lucide-react";
+import { fetchCourses } from "@/services/course.service";
+import { fetchStudents } from "@/services/student.service";
+import {
+  fetchLockers,
+  createLocker,
+  updateLocker,
+  deleteLocker,
+  createRental,
+  returnRental,
+  lockerFormSchema,
+  LockerFormData,
+  rentalFormSchema,
+  RentalFormData,
+  PopulatedLocker,
+} from "@/services/locker.service";
 
-// --- Tipos e Schemas ---
-const lockerFormSchema = z.object({
-  numero: z.string().min(1, { message: "O número é obrigatório." }),
-  building: z.enum(["A", "B", "C", "D", "E"], {
-    message: "Por favor, selecione um prédio válido.",
-  }),
-  courseId: z.string().min(1, { message: "Selecione um curso." }),
-});
-type LockerFormData = z.infer<typeof lockerFormSchema>;
-
-const rentalFormSchema = z.object({
-  studentId: z.string().min(1, { message: "Você deve selecionar um aluno." }),
-});
-type RentalFormData = z.infer<typeof rentalFormSchema>;
-
-type PopulatedLocker = Omit<ILocker, "courseId"> & {
-  courseId: ICourse;
-  activeRental?: IRental;
-};
-
-// --- MODIFICAÇÃO AQUI: Funções de serviço movidas para fora e usando 'api' ---
-const fetchLockers = async (): Promise<PopulatedLocker[]> =>
-  (await api.get("/api/lockers")).data;
-const fetchCourses = async (): Promise<ICourse[]> =>
-  (await api.get("/api/courses")).data;
-const fetchStudents = async (): Promise<IStudent[]> =>
-  (await api.get("/api/students")).data;
-const createLocker = async (data: LockerFormData) =>
-  (await api.post("/api/lockers", data)).data;
-const updateLocker = async ({
-  id,
-  data,
-}: {
-  id: string;
-  data: LockerFormData;
-}) => (await api.put(`/api/lockers/${id}`, data)).data;
-const deleteLocker = async (id: string) =>
-  (await api.delete(`/api/lockers/${id}`)).data;
-const createRental = async ({
-  lockerId,
-  studentId,
-}: {
-  lockerId: string;
-  studentId: string;
-}) => (await api.post("/api/rentals", { lockerId, studentId })).data;
-const returnRental = async (rentalId: string) =>
-  (await api.patch(`/api/rentals/${rentalId}/return`)).data;
-
-// --- Componente Principal ---
 export default function LockersPage() {
   const queryClient = useQueryClient();
   const [isLockerModalOpen, setIsLockerModalOpen] = useState(false);
@@ -71,16 +29,18 @@ export default function LockersPage() {
     null
   );
 
-  const { data: lockers, isLoading: isLoadingLockers } = useQuery<
-    PopulatedLocker[]
-  >({ queryKey: ["lockers"], queryFn: fetchLockers });
-  const { data: courses, isLoading: isLoadingCourses } = useQuery<ICourse[]>({
+  const { data: lockers, isLoading: isLoadingLockers } = useQuery({
+    queryKey: ["lockers"],
+    queryFn: fetchLockers,
+  });
+  const { data: courses, isLoading: isLoadingCourses } = useQuery({
     queryKey: ["courses"],
     queryFn: fetchCourses,
   });
-  const { data: students, isLoading: isLoadingStudents } = useQuery<IStudent[]>(
-    { queryKey: ["students"], queryFn: fetchStudents }
-  );
+  const { data: students, isLoading: isLoadingStudents } = useQuery({
+    queryKey: ["students"],
+    queryFn: fetchStudents,
+  });
 
   const lockerForm = useForm<LockerFormData>({
     resolver: zodResolver(lockerFormSchema),
@@ -89,8 +49,8 @@ export default function LockersPage() {
     resolver: zodResolver(rentalFormSchema),
   });
 
-  const handleMutationSuccess = (queryKeyToInvalidate: string) => () => {
-    queryClient.invalidateQueries({ queryKey: [queryKeyToInvalidate] });
+  const handleMutationSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ["lockers"] });
     setIsLockerModalOpen(false);
     setIsRentalModalOpen(false);
     setSelectedLocker(null);
@@ -98,23 +58,25 @@ export default function LockersPage() {
 
   const createLockerMutation = useMutation({
     mutationFn: createLocker,
-    onSuccess: handleMutationSuccess("lockers"),
+    onSuccess: handleMutationSuccess,
   });
   const updateLockerMutation = useMutation({
-    mutationFn: updateLocker,
-    onSuccess: handleMutationSuccess("lockers"),
+    mutationFn: (vars: { id: string; data: LockerFormData }) =>
+      updateLocker(vars.id, vars.data),
+    onSuccess: handleMutationSuccess,
   });
   const deleteLockerMutation = useMutation({
     mutationFn: deleteLocker,
-    onSuccess: handleMutationSuccess("lockers"),
+    onSuccess: handleMutationSuccess,
   });
   const createRentalMutation = useMutation({
-    mutationFn: createRental,
-    onSuccess: handleMutationSuccess("lockers"),
+    mutationFn: (vars: { lockerId: string; studentId: string }) =>
+      createRental(vars.lockerId, vars.studentId),
+    onSuccess: handleMutationSuccess,
   });
   const returnRentalMutation = useMutation({
     mutationFn: returnRental,
-    onSuccess: handleMutationSuccess("lockers"),
+    onSuccess: handleMutationSuccess,
   });
 
   const openLockerModal = (locker: PopulatedLocker | null) => {

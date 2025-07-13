@@ -1,58 +1,29 @@
 // application/src/app/(auth)/cadastro/page.tsx
 "use client";
-
 import Link from "next/link";
 import { Poppins } from "next/font/google";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-// --- MODIFICAÇÃO AQUI ---
 import { useMutation, useQuery } from "@tanstack/react-query";
-import api from "@/lib/api"; // Usando a instância centralizada
 import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
-import { ICourse } from "@/models/Course.model"; // Importando a interface do curso
+import { ICourse } from "@/models/Course.model";
+import {
+  fetchPublicCourses,
+  registerUser,
+  registerSchema,
+  RegisterFormData,
+} from "@/services/auth.service";
 
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["600", "700"],
-});
-
-const registerSchema = z
-  .object({
-    // --- MODIFICAÇÃO AQUI ---
-    // A validação permanece a mesma, mas o campo será populado dinamicamente.
-    curso: z.string().min(1, { message: "Por favor, selecione um curso." }),
-    nome: z
-      .string()
-      .min(3, { message: "O nome deve ter pelo menos 3 caracteres." }),
-    email: z.string().email({ message: "Por favor, insira um email válido." }),
-    senha: z
-      .string()
-      .min(8, { message: "A senha deve ter no mínimo 8 caracteres." }),
-    confirmarSenha: z.string(),
-  })
-  .refine((data) => data.senha === data.confirmarSenha, {
-    message: "As senhas não coincidem.",
-    path: ["confirmarSenha"],
-  });
-
-type RegisterFormData = z.infer<typeof registerSchema>;
-
-// --- MODIFICAÇÃO AQUI: Função para buscar os cursos públicos ---
-const fetchPublicCourses = async (): Promise<ICourse[]> => {
-  const { data } = await api.get("/api/public/courses");
-  return data;
-};
+const poppins = Poppins({ subsets: ["latin"], weight: ["600", "700"] });
 
 export default function CadastroPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
 
-  // --- MODIFICAÇÃO AQUI: useQuery para buscar os cursos ---
   const {
     data: courses,
     isLoading: isLoadingCourses,
@@ -63,20 +34,11 @@ export default function CadastroPage() {
   });
 
   const {
-    mutate: registerUser,
+    mutate: submitRegistration,
     isPending,
     error,
   } = useMutation({
-    mutationFn: async (data: RegisterFormData) => {
-      const { curso, nome, email, senha } = data;
-      const payload = { courseId: curso, nome, email, password: senha };
-      // --- MODIFICAÇÃO AQUI: Usando a instância 'api' ---
-      const { data: responseData } = await api.post(
-        "/api/auth/register",
-        payload
-      );
-      return responseData;
-    },
+    mutationFn: registerUser,
     onSuccess: () => {
       alert(
         "Cadastro realizado com sucesso! Você será redirecionado para o login."
@@ -90,18 +52,16 @@ export default function CadastroPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      curso: "",
-      nome: "",
-      email: "",
-      senha: "",
-      confirmarSenha: "",
-    },
+    resolver: zodResolver(
+      registerSchema.refine((data) => data.senha === data.confirmarSenha, {
+        message: "As senhas não coincidem.",
+        path: ["confirmarSenha"],
+      })
+    ),
   });
 
   const onSubmit = (data: RegisterFormData) => {
-    registerUser(data);
+    submitRegistration(data);
   };
 
   const apiErrorMessage =

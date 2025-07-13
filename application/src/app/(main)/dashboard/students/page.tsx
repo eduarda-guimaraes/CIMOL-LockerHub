@@ -1,56 +1,22 @@
-// --- ARQUIVO NOVO ---
 // application/src/app/(main)/dashboard/students/page.tsx
 "use client";
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import api from "@/lib/api";
-import { IStudent } from "@/models/Student.model";
-import { ICourse } from "@/models/Course.model";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { AxiosError } from "axios";
+import { fetchCourses } from "@/services/course.service";
+import {
+  fetchStudents,
+  createStudent,
+  updateStudent,
+  deleteStudent,
+  studentFormSchema,
+  StudentFormData,
+  PopulatedStudent,
+} from "@/services/student.service";
 
-// --- Schemas e Tipos ---
-const studentFormSchema = z.object({
-  nome: z
-    .string()
-    .min(3, { message: "O nome deve ter pelo menos 3 caracteres." }),
-  matricula: z.string().min(1, { message: "A matrícula é obrigatória." }),
-  course: z.string().min(1, { message: "Selecione um curso." }),
-  email: z
-    .string()
-    .email({ message: "Insira um email válido." })
-    .optional()
-    .or(z.literal("")),
-  telefone: z.string().optional(),
-});
-type StudentFormData = z.infer<typeof studentFormSchema>;
-
-type PopulatedStudent = Omit<IStudent, "course"> & {
-  course: ICourse;
-};
-
-// --- Funções de Serviço da API ---
-const fetchStudents = async (): Promise<PopulatedStudent[]> =>
-  (await api.get("/api/students")).data;
-const fetchCourses = async (): Promise<ICourse[]> =>
-  (await api.get("/api/courses")).data;
-const createStudent = async (data: StudentFormData) =>
-  (await api.post("/api/students", data)).data;
-const updateStudent = async ({
-  id,
-  data,
-}: {
-  id: string;
-  data: StudentFormData;
-}) => (await api.put(`/api/students/${id}`, data)).data;
-const deleteStudent = async (id: string) =>
-  (await api.delete(`/api/students/${id}`)).data;
-
-// --- Componente Principal ---
 export default function StudentsPage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -58,13 +24,11 @@ export default function StudentsPage() {
     null
   );
 
-  const { data: students, isLoading: isLoadingStudents } = useQuery<
-    PopulatedStudent[]
-  >({
+  const { data: students, isLoading: isLoadingStudents } = useQuery({
     queryKey: ["students"],
     queryFn: fetchStudents,
   });
-  const { data: courses, isLoading: isLoadingCourses } = useQuery<ICourse[]>({
+  const { data: courses, isLoading: isLoadingCourses } = useQuery({
     queryKey: ["courses"],
     queryFn: fetchCourses,
   });
@@ -75,19 +39,15 @@ export default function StudentsPage() {
     reset,
     formState: { errors },
     setError,
-  } = useForm<StudentFormData>({
-    resolver: zodResolver(studentFormSchema),
-  });
+  } = useForm<StudentFormData>({ resolver: zodResolver(studentFormSchema) });
 
   const handleMutationError = (error: unknown) => {
     if (error instanceof AxiosError && error.response?.status === 409) {
-      // Erro de duplicidade (matrícula ou email)
       const message = error.response.data.message || "Valor duplicado.";
-      if (message.includes("matricula")) {
+      if (message.includes("matricula"))
         setError("matricula", { type: "manual", message });
-      } else if (message.includes("email")) {
+      else if (message.includes("email"))
         setError("email", { type: "manual", message });
-      }
     }
   };
 
@@ -102,7 +62,8 @@ export default function StudentsPage() {
     onError: handleMutationError,
   });
   const updateMutation = useMutation({
-    mutationFn: updateStudent,
+    mutationFn: (vars: { id: string; data: StudentFormData }) =>
+      updateStudent(vars.id, vars.data),
     onSuccess: handleMutationSuccess,
     onError: handleMutationError,
   });
@@ -130,11 +91,8 @@ export default function StudentsPage() {
   };
 
   const onSubmit = (data: StudentFormData) => {
-    if (editingStudent) {
-      updateMutation.mutate({ id: editingStudent._id, data });
-    } else {
-      createMutation.mutate(data);
-    }
+    if (editingStudent) updateMutation.mutate({ id: editingStudent._id, data });
+    else createMutation.mutate(data);
   };
 
   const isLoading = isLoadingStudents || isLoadingCourses;

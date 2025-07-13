@@ -1,70 +1,36 @@
 // application/src/app/(main)/dashboard/users/page.tsx
 "use client";
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-// --- MODIFICAÇÃO AQUI ---
-import api from "@/lib/api"; // Usando a instância centralizada
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { IUser } from "@/models/User.model";
-import { ICourse } from "@/models/Course.model";
+import { Plus, Edit, Trash2 } from "lucide-react";
 import { useAuth } from "@/components/Auth/AuthContext";
 import AdminProtectedRoute from "@/components/Auth/AdminProtectedRoute";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { fetchCourses } from "@/services/course.service";
+import {
+  fetchUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  createUserSchema,
+  updateUserSchema,
+  CreateUserFormData,
+  UpdateUserFormData,
+  PopulatedUser,
+} from "@/services/user.service";
 
-// --- Schemas ---
-const baseUserSchema = {
-  nome: z.string().min(3, "Nome muito curto"),
-  email: z.string().email("Email inválido"),
-  courseId: z.string().min(1, "Selecione um curso"),
-  role: z.enum(["admin", "coordinator"]),
-};
-const createUserSchema = z.object({
-  ...baseUserSchema,
-  password: z.string().min(8, "Senha deve ter no mínimo 8 caracteres"),
-});
-const updateUserSchema = z.object({
-  ...baseUserSchema,
-  password: z.string().optional().or(z.literal("")),
-});
-type CreateUserFormData = z.infer<typeof createUserSchema>;
-type UpdateUserFormData = z.infer<typeof updateUserSchema>;
-
-type PopulatedUser = Omit<IUser, "courseId"> & {
-  courseId: ICourse;
-};
-
-// --- MODIFICAÇÃO AQUI: Funções de serviço movidas para fora e usando 'api' ---
-const fetchUsers = async (): Promise<PopulatedUser[]> =>
-  (await api.get("/api/users")).data;
-const fetchCourses = async (): Promise<ICourse[]> =>
-  (await api.get("/api/courses")).data;
-const createUser = async (data: CreateUserFormData) =>
-  (await api.post("/api/users", data)).data;
-const updateUser = async ({
-  id,
-  data,
-}: {
-  id: string;
-  data: UpdateUserFormData;
-}) => (await api.put(`/api/users/${id}`, data)).data;
-const deleteUser = async (id: string) =>
-  (await api.delete(`/api/users/${id}`)).data;
-
-// --- Componente ---
 export default function UsersPage() {
   const { user: loggedInUser } = useAuth();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<PopulatedUser | null>(null);
 
-  const { data: users, isLoading: isLoadingUsers } = useQuery<PopulatedUser[]>({
+  const { data: users, isLoading: isLoadingUsers } = useQuery({
     queryKey: ["users"],
     queryFn: fetchUsers,
   });
-  const { data: courses, isLoading: isLoadingCourses } = useQuery<ICourse[]>({
+  const { data: courses, isLoading: isLoadingCourses } = useQuery({
     queryKey: ["courses"],
     queryFn: fetchCourses,
   });
@@ -90,7 +56,8 @@ export default function UsersPage() {
     onSuccess: handleSuccess,
   });
   const updateMutation = useMutation({
-    mutationFn: updateUser,
+    mutationFn: (vars: { id: string; data: UpdateUserFormData }) =>
+      updateUser(vars.id, vars.data),
     onSuccess: handleSuccess,
   });
   const deleteMutation = useMutation({

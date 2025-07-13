@@ -3,16 +3,22 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-// --- MODIFICAÇÃO AQUI ---
-import api from "@/lib/api"; // Importando nossa instância centralizada
-import { AxiosError } from "axios"; // Importando AxiosError para tipagem
+import { AxiosError } from "axios";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ICourse } from "@/models/Course.model";
 import { Plus, Edit, Trash2 } from "lucide-react";
 
-// Schema de validação para o formulário de curso
+// --- MODIFICAÇÃO AQUI: Importando as funções do serviço ---
+import {
+  fetchCourses,
+  createCourse,
+  updateCourse,
+  deleteCourse,
+} from "@/services/course.service";
+
+// O schema de validação permanece aqui, pois está diretamente ligado ao formulário deste componente.
 const courseFormSchema = z.object({
   nome: z
     .string()
@@ -23,31 +29,7 @@ const courseFormSchema = z.object({
 });
 type CourseFormData = z.infer<typeof courseFormSchema>;
 
-// --- MODIFICAÇÃO AQUI: Funções de serviço movidas para fora do componente e usando 'api' ---
-const fetchCourses = async (): Promise<ICourse[]> => {
-  const { data } = await api.get("/api/courses"); // Usando 'api'
-  return data;
-};
-
-const createCourse = async (courseData: CourseFormData): Promise<ICourse> => {
-  const { data } = await api.post("/api/courses", courseData); // Usando 'api'
-  return data;
-};
-
-const updateCourse = async ({
-  id,
-  courseData,
-}: {
-  id: string;
-  courseData: CourseFormData;
-}): Promise<ICourse> => {
-  const { data } = await api.put(`/api/courses/${id}`, courseData); // Usando 'api'
-  return data;
-};
-
-const deleteCourse = async (id: string): Promise<void> => {
-  await api.delete(`/api/courses/${id}`); // Usando 'api'
-};
+// --- MODIFICAÇÃO AQUI: As funções de serviço da API foram removidas daqui ---
 
 // --- Componente Principal ---
 export default function CoursesPage() {
@@ -60,9 +42,8 @@ export default function CoursesPage() {
     isLoading,
     error,
   } = useQuery<ICourse[], AxiosError>({
-    // Tipando o erro como AxiosError
     queryKey: ["courses"],
-    queryFn: fetchCourses,
+    queryFn: fetchCourses, // Usando a função importada
   });
 
   const {
@@ -80,15 +61,18 @@ export default function CoursesPage() {
   };
 
   const createMutation = useMutation({
-    mutationFn: createCourse,
+    mutationFn: createCourse, // Usando a função importada
     onSuccess: handleMutationSuccess,
   });
   const updateMutation = useMutation({
-    mutationFn: updateCourse,
+    // --- MODIFICAÇÃO AQUI: useMutation espera uma função com um único argumento ---
+    // Adaptamos a chamada para corresponder à assinatura do serviço.
+    mutationFn: (variables: { id: string; courseData: CourseFormData }) =>
+      updateCourse(variables.id, variables.courseData),
     onSuccess: handleMutationSuccess,
   });
   const deleteMutation = useMutation({
-    mutationFn: deleteCourse,
+    mutationFn: deleteCourse, // Usando a função importada
     onSuccess: handleMutationSuccess,
   });
 
@@ -112,6 +96,7 @@ export default function CoursesPage() {
 
   const onSubmit = (data: CourseFormData) => {
     if (editingCourse) {
+      // Passamos os dados como um único objeto para a mutação
       updateMutation.mutate({ id: editingCourse._id, courseData: data });
     } else {
       createMutation.mutate(data);
@@ -119,9 +104,7 @@ export default function CoursesPage() {
   };
 
   if (isLoading) return <div>Carregando cursos...</div>;
-  // --- MODIFICAÇÃO AQUI: Tratamento de erro mais robusto ---
   if (error) {
-    // Se o erro for 401 (Não Autorizado) ou 403 (Proibido), o token pode ter expirado.
     if (error.response?.status === 401 || error.response?.status === 403) {
       return (
         <div>
