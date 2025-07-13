@@ -1,5 +1,5 @@
 // application/src/models/Rental.model.ts
-import { Document, Schema, model } from "mongoose";
+import mongoose, { Document, Schema, model } from "mongoose";
 import { ILocker } from "./Locker.model"; // Importa a interface do Locker
 import { IStudent } from "./Student.model"; // Importa a interface do Student
 
@@ -54,5 +54,5 @@ const RentalSchema = new Schema<IRental>(
 );
 
 // 3. Exportar o modelo
-const Rental = model<IRental>("Rental", RentalSchema);
+const Rental = mongoose.models.Rental || model<IRental>("Rental", RentalSchema);
 export default Rental;

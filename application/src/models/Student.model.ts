@@ -1,5 +1,5 @@
 // application/src/models/Student.model.ts
-import { Document, Schema, model } from "mongoose";
+import mongoose, { Document, Schema, model } from "mongoose";
 import { ICourse } from "./Course.model"; // Importa a interface do Course
 
 // 1. Interface para o documento Student
@@ -38,5 +38,6 @@ const StudentSchema = new Schema<IStudent>(
 );
 
 // 3. Exportar o modelo
-const Student = model<IStudent>("Student", StudentSchema);
+const Student =
+  mongoose.models.Student || model<IStudent>("Student", StudentSchema);
 export default Student;

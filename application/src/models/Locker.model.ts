@@ -1,12 +1,13 @@
 // application/src/models/Locker.model.ts
-import { Document, Schema, model } from "mongoose";
+import mongoose, { Document, Schema, model } from "mongoose";
 import { ICourse } from "./Course.model"; // Importa a interface do Course
 
 // 1. Interface para o documento Locker
 export interface ILocker extends Document {
+  _id: string;
   numero: string;
   status: "available" | "occupied" | "overdue";
-  courseId: Schema.Types.ObjectId | ICourse; // Referência ao ID do curso ou ao objeto populado
+  courseId: Schema.Types.ObjectId | ICourse;
   building: "A" | "B" | "C" | "D" | "E"; // Novo campo para o prédio
   createdAt: Date;
   updatedAt: Date;
@@ -46,5 +47,5 @@ const LockerSchema = new Schema<ILocker>(
 );
 
 // 3. Exportar o modelo
-const Locker = model<ILocker>("Locker", LockerSchema);
+const Locker = mongoose.models.Locker || model<ILocker>("Locker", LockerSchema);
 export default Locker;

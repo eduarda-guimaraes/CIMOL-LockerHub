@@ -1,5 +1,5 @@
 // application/src/models/User.model.ts
-import { Document, Schema, model, Types } from "mongoose";
+import mongoose, { Document, Schema, model, Types } from "mongoose";
 import bcrypt from "bcryptjs";
 import { ICourse } from "./Course.model";
 
@@ -98,5 +98,5 @@ UserSchema.methods.comparePassword = async function (
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-const User = model<IUser>("User", UserSchema);
+const User = mongoose.models.User || model<IUser>("User", UserSchema);
 export default User;

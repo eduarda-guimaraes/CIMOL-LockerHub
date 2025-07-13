@@ -1,5 +1,5 @@
 // application/src/models/Course.model.ts
-import { Document, Schema, model } from "mongoose";
+import mongoose, { Document, Schema, model } from "mongoose";
 
 // 1. Interface para o documento Course
 export interface ICourse extends Document {
@@ -33,5 +33,5 @@ const CourseSchema = new Schema<ICourse>(
 );
 
 // 3. Exportar o modelo
-const Course = model<ICourse>("Course", CourseSchema);
+const Course = mongoose.models.Course || model<ICourse>("Course", CourseSchema);
 export default Course;
