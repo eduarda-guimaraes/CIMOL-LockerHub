@@ -46,6 +46,7 @@ export async function POST() {
         accessToken: newAccessToken,
         user: {
           id: user._id.toString(),
+          nome: user.nome,
           email: user.email,
           role: user.role,
         },

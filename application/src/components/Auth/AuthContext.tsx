@@ -10,30 +10,23 @@ import {
 } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-
-interface User {
-  id: string;
-  email: string;
-  role: "admin" | "coordinator";
-}
+import { UserSession } from "@/types";
 
 interface AuthContextType {
-  user: User | null;
+  user: UserSession | null;
   accessToken: string | null;
   isLoading: boolean;
-  login: (data: { user: User; accessToken: string }) => void;
+  login: (data: { user: UserSession; accessToken: string }) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// --- MODIFICAÇÃO AQUI: Configurando o Axios e adicionando re-hidratação ---
 const api = axios.create();
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserSession | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Começa true para a verificação inicial
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -47,18 +40,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             "Authorization"
           ] = `Bearer ${data.accessToken}`;
         }
-      } catch {
+      } catch (error) {
+        console.error("Erro ao re-hidratar a autenticação:", error);
         console.log("Nenhuma sessão ativa para re-hidratar.");
-        // Falha em re-hidratar é normal se o usuário não estiver logado
       } finally {
-        setIsLoading(false); // Termina o carregamento, independentemente do resultado
+        setIsLoading(false);
       }
     };
 
     rehydrateAuth();
-  }, []); // Array vazio garante que isso rode apenas uma vez
+  }, []);
 
-  const login = (data: { user: User; accessToken: string }) => {
+  const login = (data: { user: UserSession; accessToken: string }) => {
     setUser(data.user);
     setAccessToken(data.accessToken);
     api.defaults.headers.common["Authorization"] = `Bearer ${data.accessToken}`;

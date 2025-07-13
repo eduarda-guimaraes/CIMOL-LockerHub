@@ -1,38 +1,27 @@
 // application/src/lib/services/auth.service.ts
 import jwt from "jsonwebtoken";
 import User, { IUser } from "@/models/User.model";
-import { Types } from "mongoose";
+import { UserSession } from "@/types";
 
-// --- MODIFICAÇÃO AQUI: Ajustando o tipo de entrada para aceitar string ---
-// Este é o "Data Transfer Object" (DTO) para registro.
-// Ele representa os dados que vêm da camada de API.
 type RegisterUserDTO = Pick<IUser, "nome" | "email" | "password"> & {
-  courseId: string; // A API nos envia uma string, não um ObjectId.
+  courseId: string;
 };
-
-// O tipo de usuário que retornamos para o cliente (sem dados sensíveis).
-type SanitizedUser = Omit<IUser, "password" | "comparePassword">;
 
 interface LoginResponse {
   accessToken: string;
   refreshToken: string;
-  user: {
-    id: string;
-    email: string;
-    role: "admin" | "coordinator";
-  };
+  user: UserSession;
 }
 
 export const registerUser = async (
   userData: RegisterUserDTO
-): Promise<SanitizedUser> => {
+): Promise<IUser> => {
   const existingUser = await User.findOne({ email: userData.email });
   if (existingUser) {
     throw new Error("Este email já está cadastrado.");
   }
 
   const userCount = await User.countDocuments();
-  // Mongoose converte a string 'courseId' para ObjectId automaticamente.
   const newUser = new User(userData);
 
   if (userCount === 0) {
@@ -43,11 +32,7 @@ export const registerUser = async (
   }
 
   await newUser.save();
-
-  // --- MODIFICAÇÃO AQUI: Tipando toObject() para remover 'any' ---
-  const userObject = newUser.toObject<IUser>();
-  delete userObject.password; // Agora podemos deletar a senha sem 'any'
-  return userObject;
+  return newUser;
 };
 
 export const loginUser = async (
@@ -69,13 +54,13 @@ export const loginUser = async (
   }
 
   const accessToken = jwt.sign(
-    { userId: user._id, role: user.role },
+    { userId: user._id.toString(), role: user.role },
     process.env.JWT_SECRET,
     { expiresIn: "15m" }
   );
 
   const refreshToken = jwt.sign(
-    { userId: user._id, role: user.role },
+    { userId: user._id.toString(), role: user.role },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: "7d" }
   );
@@ -83,9 +68,9 @@ export const loginUser = async (
   return {
     accessToken,
     refreshToken,
-    // --- MODIFICAÇÃO AQUI: Resolvendo o erro 'unknown' de forma robusta ---
     user: {
-      id: (user._id as Types.ObjectId).toString(),
+      id: user._id.toString(),
+      nome: user.nome,
       email: user.email,
       role: user.role,
     },
