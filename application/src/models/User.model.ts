@@ -1,9 +1,10 @@
 // application/src/models/User.model.ts
-import { Document, Schema, model } from "mongoose";
+import { Document, Schema, model, Types } from "mongoose";
 import bcrypt from "bcryptjs";
 import { ICourse } from "./Course.model";
 
 export interface IUser extends Document {
+  _id: Types.ObjectId;
   nome: string;
   courseId: Schema.Types.ObjectId | ICourse;
   email: string;
