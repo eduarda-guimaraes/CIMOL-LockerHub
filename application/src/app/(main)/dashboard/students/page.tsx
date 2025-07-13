@@ -172,15 +172,20 @@ export default function StudentsPage() {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 w-full max-w-lg">
-            <h2 className="text-2xl font-bold mb-4">
+        // --- MODIFICAÇÃO AQUI: Removendo o fundo preto do overlay ---
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 w-full max-w-lg shadow-lg">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">
               {editingStudent ? "Editar Aluno" : "Novo Aluno"}
             </h2>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="nome" className="block text-sm font-medium">
+                  {/* --- MODIFICAÇÃO AQUI: Adicionando classe de cor --- */}
+                  <label
+                    htmlFor="nome"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     Nome
                   </label>
                   <input
@@ -196,9 +201,10 @@ export default function StudentsPage() {
                   )}
                 </div>
                 <div>
+                  {/* --- MODIFICAÇÃO AQUI: Adicionando classe de cor --- */}
                   <label
                     htmlFor="matricula"
-                    className="block text-sm font-medium"
+                    className="block text-sm font-medium text-gray-700"
                   >
                     Matrícula
                   </label>
@@ -216,7 +222,11 @@ export default function StudentsPage() {
                 </div>
               </div>
               <div>
-                <label htmlFor="course" className="block text-sm font-medium">
+                {/* --- MODIFICAÇÃO AQUI: Adicionando classe de cor --- */}
+                <label
+                  htmlFor="course"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Curso
                 </label>
                 <select
@@ -239,7 +249,11 @@ export default function StudentsPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium">
+                  {/* --- MODIFICAÇÃO AQUI: Adicionando classe de cor --- */}
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     Email (Opcional)
                   </label>
                   <input
@@ -255,9 +269,10 @@ export default function StudentsPage() {
                   )}
                 </div>
                 <div>
+                  {/* --- MODIFICAÇÃO AQUI: Adicionando classe de cor --- */}
                   <label
                     htmlFor="telefone"
-                    className="block text-sm font-medium"
+                    className="block text-sm font-medium text-gray-700"
                   >
                     Telefone (Opcional)
                   </label>
@@ -278,7 +293,7 @@ export default function StudentsPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-gray-200 rounded-md"
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
                 >
                   Cancelar
                 </button>

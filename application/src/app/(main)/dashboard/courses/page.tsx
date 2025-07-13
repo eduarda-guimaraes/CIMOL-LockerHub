@@ -177,13 +177,15 @@ export default function CoursesPage() {
 
       {/* Modal de Criação/Edição */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-4">
+        // --- MODIFICAÇÃO AQUI: Removendo o fundo preto do overlay ---
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 w-full max-w-md shadow-lg">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">
               {editingCourse ? "Editar Curso" : "Novo Curso"}
             </h2>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
+                {/* --- MODIFICAÇÃO AQUI: Adicionando classe de cor na label --- */}
                 <label
                   htmlFor="nome"
                   className="block text-sm font-medium text-gray-700"
@@ -203,6 +205,7 @@ export default function CoursesPage() {
                 )}
               </div>
               <div>
+                {/* --- MODIFICAÇÃO AQUI: Adicionando classe de cor na label --- */}
                 <label
                   htmlFor="codigo"
                   className="block text-sm font-medium text-gray-700"
@@ -225,7 +228,7 @@ export default function CoursesPage() {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 bg-gray-200 rounded-md"
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
                 >
                   Cancelar
                 </button>
