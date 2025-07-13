@@ -1,18 +1,20 @@
 // application/src/models/Student.model.ts
 import mongoose, { Document, Schema, model } from "mongoose";
-import { ICourse } from "./Course.model"; // Importa a interface do Course
+import { ICourse } from "./Course.model";
 
-// 1. Interface para o documento Student
+// --- MODIFICAÇÃO AQUI: Adicionando novos campos à interface ---
 export interface IStudent extends Document {
   _id: string;
   nome: string;
   matricula: string;
-  course: Schema.Types.ObjectId | ICourse; // Referência ao ID do curso ou ao objeto populado
+  course: Schema.Types.ObjectId | ICourse;
+  email?: string; // Opcional
+  telefone?: string; // Opcional
   createdAt: Date;
   updatedAt: Date;
 }
 
-// 2. Schema do Mongoose
+// --- MODIFICAÇÃO AQUI: Atualizando o Schema ---
 const StudentSchema = new Schema<IStudent>(
   {
     nome: {
@@ -26,11 +28,25 @@ const StudentSchema = new Schema<IStudent>(
       unique: true,
       trim: true,
     },
-    // --- MODIFICAÇÃO AQUI: Renomeando 'curso' para 'course' para consistência com ref ---
     course: {
       type: Schema.Types.ObjectId,
-      ref: "Course", // Referência ao curso do estudante
+      ref: "Course",
       required: [true, "O curso do estudante é obrigatório."],
+    },
+    email: {
+      type: String,
+      unique: true,
+      // 'sparse: true' permite múltiplos documentos com valor nulo,
+      // mas garante que, se um email for fornecido, ele seja único.
+      sparse: true,
+      trim: true,
+      lowercase: true,
+      // Validação de formato de email
+      match: [/.+\@.+\..+/, "Por favor, insira um email válido."],
+    },
+    telefone: {
+      type: String,
+      trim: true,
     },
   },
   {
@@ -38,7 +54,6 @@ const StudentSchema = new Schema<IStudent>(
   }
 );
 
-// 3. Exportar o modelo
 const Student =
   mongoose.models.Student || model<IStudent>("Student", StudentSchema);
 export default Student;

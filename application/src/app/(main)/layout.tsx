@@ -2,10 +2,11 @@
 "use client";
 
 import { ReactNode } from "react";
-import Link from "next/link"; // Importar Link
+import Link from "next/link";
 import ProtectedRoute from "@/components/Auth/ProtectedRoute";
 import { useAuth } from "@/components/Auth/AuthContext";
-import { LogOut, Users, Package } from "lucide-react"; // Importar mais ícones
+// --- MODIFICAÇÃO AQUI: Importando novo ícone ---
+import { LogOut, Users, Package, GraduationCap } from "lucide-react";
 
 export default function MainLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -32,6 +33,14 @@ export default function MainLayout({ children }: { children: ReactNode }) {
               <Package size={18} />
               Cursos
             </Link>
+            {/* --- MODIFICAÇÃO AQUI: Adicionando o link para Alunos --- */}
+            <Link
+              href="/dashboard/students"
+              className="flex items-center gap-3 px-2 py-2 text-sm font-medium rounded-md hover:bg-gray-700"
+            >
+              <GraduationCap size={18} />
+              Alunos
+            </Link>
             <Link
               href="/dashboard/lockers"
               className="flex items-center gap-3 px-2 py-2 text-sm font-medium rounded-md hover:bg-gray-700"
@@ -39,7 +48,6 @@ export default function MainLayout({ children }: { children: ReactNode }) {
               <Package size={18} />
               Armários
             </Link>
-            {/* --- MODIFICAÇÃO AQUI: Link condicional para Admin --- */}
             {user?.role === "admin" && (
               <Link
                 href="/dashboard/users"
