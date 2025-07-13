@@ -3,7 +3,8 @@
 
 import { useAuth } from "@/components/Auth/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+// --- MODIFICAÇÃO AQUI ---
+import api from "@/lib/api"; // Usando a instância centralizada
 import { Package, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
@@ -14,8 +15,9 @@ interface DashboardStats {
   overdue: number;
 }
 
+// --- MODIFICAÇÃO AQUI: Função movida para fora e usando 'api' ---
 const fetchDashboardStats = async (): Promise<DashboardStats> => {
-  const { data } = await axios.get("/api/dashboard/stats");
+  const { data } = await api.get("/api/dashboard/stats");
   return data;
 };
 

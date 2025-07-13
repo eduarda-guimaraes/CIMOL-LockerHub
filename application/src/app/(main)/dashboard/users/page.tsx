@@ -3,7 +3,8 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+// --- MODIFICAÇÃO AQUI ---
+import api from "@/lib/api"; // Usando a instância centralizada
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -31,27 +32,26 @@ const updateUserSchema = z.object({
 type CreateUserFormData = z.infer<typeof createUserSchema>;
 type UpdateUserFormData = z.infer<typeof updateUserSchema>;
 
-// Tipo para o usuário populado que vem da API
 type PopulatedUser = Omit<IUser, "courseId"> & {
   courseId: ICourse;
 };
 
-// --- API Service Functions ---
+// --- MODIFICAÇÃO AQUI: Funções de serviço movidas para fora e usando 'api' ---
 const fetchUsers = async (): Promise<PopulatedUser[]> =>
-  (await axios.get("/api/users")).data;
+  (await api.get("/api/users")).data;
 const fetchCourses = async (): Promise<ICourse[]> =>
-  (await axios.get("/api/courses")).data;
+  (await api.get("/api/courses")).data;
 const createUser = async (data: CreateUserFormData) =>
-  (await axios.post("/api/users", data)).data;
+  (await api.post("/api/users", data)).data;
 const updateUser = async ({
   id,
   data,
 }: {
   id: string;
   data: UpdateUserFormData;
-}) => (await axios.put(`/api/users/${id}`, data)).data;
+}) => (await api.put(`/api/users/${id}`, data)).data;
 const deleteUser = async (id: string) =>
-  (await axios.delete(`/api/users/${id}`)).data;
+  (await api.delete(`/api/users/${id}`)).data;
 
 // --- Componente ---
 export default function UsersPage() {
@@ -197,7 +197,9 @@ export default function UsersPage() {
                         <Edit size={18} />
                       </button>
                       <button
-                        onClick={() => deleteMutation.mutate(user._id.toString())}
+                        onClick={() =>
+                          deleteMutation.mutate(user._id.toString())
+                        }
                         disabled={user._id.toString() === loggedInUser?.id}
                         className="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
                       >

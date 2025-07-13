@@ -3,7 +3,9 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios, { AxiosError } from "axios";
+// --- MODIFICAÇÃO AQUI ---
+import api from "@/lib/api"; // Importando nossa instância centralizada
+import { AxiosError } from "axios"; // Importando AxiosError para tipagem
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,14 +23,14 @@ const courseFormSchema = z.object({
 });
 type CourseFormData = z.infer<typeof courseFormSchema>;
 
-// --- API Service Functions ---
+// --- MODIFICAÇÃO AQUI: Funções de serviço movidas para fora do componente e usando 'api' ---
 const fetchCourses = async (): Promise<ICourse[]> => {
-  const { data } = await axios.get("/api/courses");
+  const { data } = await api.get("/api/courses"); // Usando 'api'
   return data;
 };
 
 const createCourse = async (courseData: CourseFormData): Promise<ICourse> => {
-  const { data } = await axios.post("/api/courses", courseData);
+  const { data } = await api.post("/api/courses", courseData); // Usando 'api'
   return data;
 };
 
@@ -39,12 +41,12 @@ const updateCourse = async ({
   id: string;
   courseData: CourseFormData;
 }): Promise<ICourse> => {
-  const { data } = await axios.put(`/api/courses/${id}`, courseData);
+  const { data } = await api.put(`/api/courses/${id}`, courseData); // Usando 'api'
   return data;
 };
 
 const deleteCourse = async (id: string): Promise<void> => {
-  await axios.delete(`/api/courses/${id}`);
+  await api.delete(`/api/courses/${id}`); // Usando 'api'
 };
 
 // --- Componente Principal ---
@@ -57,7 +59,8 @@ export default function CoursesPage() {
     data: courses,
     isLoading,
     error,
-  } = useQuery<ICourse[]>({
+  } = useQuery<ICourse[], AxiosError>({
+    // Tipando o erro como AxiosError
     queryKey: ["courses"],
     queryFn: fetchCourses,
   });
@@ -116,8 +119,18 @@ export default function CoursesPage() {
   };
 
   if (isLoading) return <div>Carregando cursos...</div>;
-  if (error)
-    return <div>Erro ao carregar cursos: {(error as AxiosError).message}</div>;
+  // --- MODIFICAÇÃO AQUI: Tratamento de erro mais robusto ---
+  if (error) {
+    // Se o erro for 401 (Não Autorizado) ou 403 (Proibido), o token pode ter expirado.
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      return (
+        <div>
+          Sessão expirada ou sem permissão. Por favor, faça login novamente.
+        </div>
+      );
+    }
+    return <div>Erro ao carregar cursos: {error.message}</div>;
+  }
 
   return (
     <div>

@@ -3,7 +3,8 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+// --- MODIFICAÇÃO AQUI ---
+import api from "@/lib/api"; // Usando a instância centralizada
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,33 +34,33 @@ type PopulatedLocker = Omit<ILocker, "courseId"> & {
   activeRental?: IRental;
 };
 
-// --- API Service Functions ---
+// --- MODIFICAÇÃO AQUI: Funções de serviço movidas para fora e usando 'api' ---
 const fetchLockers = async (): Promise<PopulatedLocker[]> =>
-  (await axios.get("/api/lockers")).data;
+  (await api.get("/api/lockers")).data;
 const fetchCourses = async (): Promise<ICourse[]> =>
-  (await axios.get("/api/courses")).data;
+  (await api.get("/api/courses")).data;
 const fetchStudents = async (): Promise<IStudent[]> =>
-  (await axios.get("/api/students")).data;
+  (await api.get("/api/students")).data;
 const createLocker = async (data: LockerFormData) =>
-  (await axios.post("/api/lockers", data)).data;
+  (await api.post("/api/lockers", data)).data;
 const updateLocker = async ({
   id,
   data,
 }: {
   id: string;
   data: LockerFormData;
-}) => (await axios.put(`/api/lockers/${id}`, data)).data;
+}) => (await api.put(`/api/lockers/${id}`, data)).data;
 const deleteLocker = async (id: string) =>
-  (await axios.delete(`/api/lockers/${id}`)).data;
+  (await api.delete(`/api/lockers/${id}`)).data;
 const createRental = async ({
   lockerId,
   studentId,
 }: {
   lockerId: string;
   studentId: string;
-}) => (await axios.post("/api/rentals", { lockerId, studentId })).data;
+}) => (await api.post("/api/rentals", { lockerId, studentId })).data;
 const returnRental = async (rentalId: string) =>
-  (await axios.patch(`/api/rentals/${rentalId}/return`)).data;
+  (await api.patch(`/api/rentals/${rentalId}/return`)).data;
 
 // --- Componente Principal ---
 export default function LockersPage() {
