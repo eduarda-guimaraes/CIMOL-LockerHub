@@ -2,11 +2,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // --- MODIFICAÇÃO AQUI: A SOLUÇÃO FINAL ---
-  // Instruímos o Next.js a não falhar o build se encontrar erros de TypeScript.
-  // Isso é útil para contornar erros persistentes de ferramentas que bloqueiam o progresso.
   typescript: {
     ignoreBuildErrors: true,
+  },
+  // --- MODIFICAÇÃO AQUI: Adicionando a regra de redirecionamento ---
+  async redirects() {
+    return [
+      {
+        source: "/", // A rota de origem
+        destination: "/login", // A rota de destino
+        permanent: true, // Indica um redirecionamento 308 (permanente)
+      },
+    ];
   },
 };
 
