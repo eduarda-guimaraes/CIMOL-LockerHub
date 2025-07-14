@@ -1,4 +1,6 @@
+// --- ARQUIVO RESTAURADO ---
 // application/src/app/api/users/[id]/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import User, { IUser } from "@/models/User.model";
@@ -8,7 +10,7 @@ import { z } from "zod";
 const updateUserSchema = z.object({
   nome: z.string().min(3),
   email: z.string().email(),
-  password: z.string().min(8).optional().or(z.literal("")), // Senha é opcional
+  password: z.string().min(8).optional().or(z.literal("")),
   courseId: z.string().min(1),
   role: z.enum(["admin", "coordinator"]),
 });
@@ -16,7 +18,7 @@ const updateUserSchema = z.object({
 // PUT: Atualizar um usuário
 const updateUserHandler = async (
   req: NextRequest,
-  adminUser: IUser,
+  _adminUser: IUser, // Corrigido com _
   { params }: { params: { id: string } }
 ) => {
   await connectDB();
@@ -33,7 +35,6 @@ const updateUserHandler = async (
 
   const updateData = validation.data;
 
-  // Se a senha não foi fornecida ou está vazia, removemos do objeto de atualização
   if (!updateData.password) {
     delete updateData.password;
   }
@@ -52,14 +53,13 @@ const updateUserHandler = async (
 
 // DELETE: Deletar um usuário
 const deleteUserHandler = async (
-  req: NextRequest,
+  _req: NextRequest, // Corrigido com _
   adminUser: IUser,
   { params }: { params: { id: string } }
 ) => {
   await connectDB();
   const { id } = params;
 
-  // Prevenção de auto-deleção
   if (adminUser._id.toString() === id) {
     return NextResponse.json(
       { message: "Administradores não podem se auto-deletar." },

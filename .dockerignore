@@ -1,0 +1,31 @@
+# Arquivo: .dockerignore
+
+# Ignorar o Dockerfile e arquivos de composição
+Dockerfile
+docker-compose.yml
+
+# Ignorar dependências locais, elas serão instaladas dentro do container
+node_modules
+application/node_modules
+
+# Ignorar logs e arquivos de debug
+npm-debug.log
+yarn-error.log
+
+# Ignorar a pasta de build do Next.js, ela será gerada dentro do container
+.next
+application/.next
+application/out
+
+# Ignorar arquivos de ambiente. Eles serão injetados de forma segura.
+.env
+.env.local
+application/.env
+application/.env.local
+
+# Ignorar arquivos do Git
+.git
+.gitignore
+
+# Ignorar arquivos do VSCode
+.vscode

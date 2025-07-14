@@ -1,7 +1,9 @@
 // application/src/app/api/users/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
-import User, { IUser } from "@/models/User.model";
+// --- MODIFICAÇÃO AQUI: Removendo a importação de 'IUser' ---
+import User from "@/models/User.model";
 import { withAdminAuth } from "@/lib/auth/withAdminAuth";
 import { z } from "zod";
 
@@ -13,6 +15,7 @@ const createUserSchema = z.object({
   role: z.enum(["admin", "coordinator"]),
 });
 
+// GET: Listar todos os usuários
 const getUsersHandler = async () => {
   await connectDB();
   const users = await User.find({})
@@ -22,12 +25,8 @@ const getUsersHandler = async () => {
   return NextResponse.json(users);
 };
 
-const createUserHandler = async (
-  req: NextRequest,
-  _adminUser: IUser,
-  // --- MODIFICAÇÃO AQUI: Usando 'unknown' para o tipo do contexto não utilizado ---
-  _context: unknown
-) => {
+// POST: Criar um novo usuário
+const createUserHandler = async (req: NextRequest) => {
   await connectDB();
   const body = await req.json();
   const validation = createUserSchema.safeParse(body);
@@ -45,5 +44,4 @@ const createUserHandler = async (
 };
 
 export const GET = withAdminAuth(getUsersHandler);
-// --- MODIFICAÇÃO AQUI: Usando withAdminAuth em vez de withAuth ---
 export const POST = withAdminAuth(createUserHandler);

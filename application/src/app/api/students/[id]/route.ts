@@ -24,7 +24,7 @@ const studentSchema = z.object({
 // --- MODIFICAÇÃO AQUI: Assinatura da função corrigida ---
 const updateStudentHandler = async (
   req: NextRequest,
-  user: IUser, // O segundo argumento é o usuário
+  _user: IUser, // O segundo argumento é o usuário
   { params }: { params: { id: string } } // O terceiro é o contexto com os params
 ) => {
   try {
@@ -84,8 +84,8 @@ const updateStudentHandler = async (
 
 // --- MODIFICAÇÃO AQUI: Assinatura da função corrigida ---
 const deleteStudentHandler = async (
-  req: NextRequest,
-  user: IUser, // O segundo argumento é o usuário
+  _req: NextRequest,
+  _user: IUser, // O segundo argumento é o usuário
   { params }: { params: { id: string } } // O terceiro é o contexto com os params
 ) => {
   try {

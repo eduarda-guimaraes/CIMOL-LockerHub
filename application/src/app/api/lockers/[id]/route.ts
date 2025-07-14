@@ -15,13 +15,13 @@ const lockerSchema = z.object({
 
 // PUT: Atualizar um armário
 export async function PUT(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     await connectDB();
     const { id } = params;
-    const body = await req.json();
+    const body = await _req.json();
     const validation = lockerSchema.safeParse(body);
 
     if (!validation.success) {
@@ -54,7 +54,7 @@ export async function PUT(
 
 // DELETE: Deletar um armário
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {

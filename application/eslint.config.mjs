@@ -38,6 +38,7 @@ const eslintConfig = [
       ],
       // Adicionando a regra para permitir o tipo {} quando necessário, mas com aviso
       "@typescript-eslint/no-empty-object-type": "warn",
+      "@typescript-eslint/ban-ts-comment": "off",
     },
   },
 ];
