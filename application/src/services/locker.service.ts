@@ -1,8 +1,9 @@
 // application/src/services/locker.service.ts
 import api from "@/lib/api";
-import { ILocker, ICourse, IRental } from "@/models";
+import { ILocker, ICourse, IRental, IStudent } from "@/models"; // Importe IStudent
 import { z } from "zod";
 
+// ... (schemas do Zod permanecem os mesmos) ...
 export const lockerFormSchema = z.object({
   numero: z.string().min(1, { message: "O número é obrigatório." }),
   building: z.enum(["A", "B", "C", "D", "E"]),
@@ -10,7 +11,6 @@ export const lockerFormSchema = z.object({
 });
 export type LockerFormData = z.infer<typeof lockerFormSchema>;
 
-// --- MODIFICAÇÃO AQUI: Adicionando os campos de data ao schema e tipo do formulário de aluguel ---
 export const rentalFormSchema = z.object({
   studentId: z.string().min(1, { message: "Você deve selecionar um aluno." }),
   dataInicio: z.string().refine((val) => !isNaN(Date.parse(val)), {
@@ -22,13 +22,23 @@ export const rentalFormSchema = z.object({
 });
 export type RentalFormData = z.infer<typeof rentalFormSchema>;
 
-export type PopulatedLocker = Omit<ILocker, "courseId"> & {
-  courseId: ICourse;
-  activeRental?: IRental;
+
+// --- CORREÇÃO AQUI ---
+// 1. Criamos um tipo para o aluguel POPULADO, onde studentId é garantidamente um IStudent
+export type PopulatedRental = Omit<IRental, 'studentId'> & {
+  studentId: IStudent;
 };
 
+// 2. Atualizamos PopulatedLocker para usar o novo tipo PopulatedRental
+export type PopulatedLocker = Omit<ILocker, "courseId" | "activeRental"> & {
+  courseId: ICourse;
+  activeRental?: PopulatedRental; // Agora usa o tipo mais específico
+};
+// --- FIM DA CORREÇÃO ---
+
+
 export const fetchLockers = async (): Promise<PopulatedLocker[]> =>
-  (await api.get("/api/lockers")).data;
+  (await api.get<PopulatedLocker[]>("/api/lockers")).data;
 export const createLocker = async (data: LockerFormData) =>
   (await api.post("/api/lockers", data)).data;
 export const updateLocker = async (id: string, data: LockerFormData) =>
@@ -36,7 +46,6 @@ export const updateLocker = async (id: string, data: LockerFormData) =>
 export const deleteLocker = async (id: string) =>
   (await api.delete(`/api/lockers/${id}`)).data;
 
-// --- MODIFICAÇÃO AQUI: Atualizando a assinatura e o corpo da função createRental ---
 export const createRental = async (
   lockerId: string,
   rentalData: RentalFormData
