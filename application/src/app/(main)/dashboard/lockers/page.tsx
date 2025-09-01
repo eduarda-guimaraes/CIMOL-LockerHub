@@ -24,7 +24,7 @@ import {
 import Modal from "@/components/ui/Modal";
 import { ICourse, IStudent } from "@/models";
 
-// --- MODIFICAÇÃO AQUI: Função utilitária para formatar a data para o input ---
+// Util: data hoje em YYYY-MM-DD para <input type="date" />
 const getTodayDateString = () => {
   const today = new Date();
   const year = today.getFullYear();
@@ -37,20 +37,20 @@ export default function LockersPage() {
   const queryClient = useQueryClient();
   const [isLockerModalOpen, setIsLockerModalOpen] = useState(false);
   const [isRentalModalOpen, setIsRentalModalOpen] = useState(false);
-  const [selectedLocker, setSelectedLocker] = useState<PopulatedLocker | null>(
-    null
-  );
+  const [selectedLocker, setSelectedLocker] = useState<PopulatedLocker | null>(null);
 
-  const { data: lockers, isLoading: isLoadingLockers } = useQuery<
-    PopulatedLocker[]
-  >({ queryKey: ["lockers"], queryFn: fetchLockers });
+  const { data: lockers, isLoading: isLoadingLockers } = useQuery<PopulatedLocker[]>({
+    queryKey: ["lockers"],
+    queryFn: fetchLockers,
+  });
   const { data: courses, isLoading: isLoadingCourses } = useQuery<ICourse[]>({
     queryKey: ["courses"],
     queryFn: fetchCourses,
   });
-  const { data: students, isLoading: isLoadingStudents } = useQuery<IStudent[]>(
-    { queryKey: ["students"], queryFn: fetchStudents }
-  );
+  const { data: students, isLoading: isLoadingStudents } = useQuery<IStudent[]>({
+    queryKey: ["students"],
+    queryFn: fetchStudents,
+  });
 
   const lockerForm = useForm<LockerFormData>({
     resolver: zodResolver(lockerFormSchema),
@@ -59,8 +59,19 @@ export default function LockersPage() {
     resolver: zodResolver(rentalFormSchema),
   });
 
-  const handleMutationSuccess = () => {
+  // ✅ Centralizamos aqui todas as invalidações que o Dashboard precisa
+  const invalidateDashboard = () => {
+    // Tela de listagem desta página
     queryClient.invalidateQueries({ queryKey: ["lockers"] });
+
+    // Telas/Seções do Dashboard principal
+    queryClient.invalidateQueries({ queryKey: ["dashboardStats"] }); // KPIs
+    queryClient.invalidateQueries({ queryKey: ["overdueRentals"] }); // Faixa Atrasados
+    queryClient.invalidateQueries({ queryKey: ["lockersGrid"] });    // Grade de Armários
+  };
+
+  const handleMutationSuccess = () => {
+    invalidateDashboard();
     closeModals();
   };
 
@@ -68,21 +79,24 @@ export default function LockersPage() {
     mutationFn: createLocker,
     onSuccess: handleMutationSuccess,
   });
+
   const updateLockerMutation = useMutation({
     mutationFn: (vars: { id: string; data: LockerFormData }) =>
       updateLocker(vars.id, vars.data),
     onSuccess: handleMutationSuccess,
   });
+
   const deleteLockerMutation = useMutation({
     mutationFn: deleteLocker,
     onSuccess: handleMutationSuccess,
   });
-  // --- MODIFICAÇÃO AQUI: Atualizando a assinatura da mutação ---
+
   const createRentalMutation = useMutation({
     mutationFn: (vars: { lockerId: string; rentalData: RentalFormData }) =>
       createRental(vars.lockerId, vars.rentalData),
     onSuccess: handleMutationSuccess,
   });
+
   const returnRentalMutation = useMutation({
     mutationFn: returnRental,
     onSuccess: handleMutationSuccess,
@@ -104,7 +118,6 @@ export default function LockersPage() {
 
   const openRentalModal = (locker: PopulatedLocker) => {
     setSelectedLocker(locker);
-    // --- MODIFICAÇÃO AQUI: Resetando o formulário com a data de hoje ---
     rentalForm.reset({
       studentId: "",
       dataInicio: getTodayDateString(),
@@ -127,7 +140,6 @@ export default function LockersPage() {
     }
   };
 
-  // --- MODIFICAÇÃO AQUI: Atualizando a lógica de submissão do aluguel ---
   const onRentalSubmit = (data: RentalFormData) => {
     if (selectedLocker) {
       createRentalMutation.mutate({
@@ -138,11 +150,7 @@ export default function LockersPage() {
   };
 
   const handleReturn = (rentalId: string) => {
-    if (
-      window.confirm(
-        "Tem certeza que deseja registrar a devolução deste armário?"
-      )
-    ) {
+    if (window.confirm("Tem certeza que deseja registrar a devolução deste armário?")) {
       returnRentalMutation.mutate(rentalId);
     }
   };
@@ -152,9 +160,7 @@ export default function LockersPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Gerenciamento de Armários
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-900">Gerenciamento de Armários</h1>
         <button
           onClick={() => openLockerModal(null)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -168,7 +174,6 @@ export default function LockersPage() {
       ) : (
         <div className="bg-white shadow rounded-lg overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            {/* ... o código da tabela permanece o mesmo ... */}
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -256,7 +261,7 @@ export default function LockersPage() {
         </div>
       )}
 
-      {/* ... Modal de CRUD de Armário permanece o mesmo ... */}
+      {/* Modal de Armário */}
       <Modal
         isOpen={isLockerModalOpen}
         onClose={closeModals}
@@ -273,9 +278,7 @@ export default function LockersPage() {
             <button
               type="submit"
               form="locker-form"
-              disabled={
-                createLockerMutation.isPending || updateLockerMutation.isPending
-              }
+              disabled={createLockerMutation.isPending || updateLockerMutation.isPending}
               className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
             >
               {createLockerMutation.isPending || updateLockerMutation.isPending
@@ -291,10 +294,7 @@ export default function LockersPage() {
           className="space-y-4"
         >
           <div>
-            <label
-              htmlFor="numero"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <label htmlFor="numero" className="block text-sm font-medium text-gray-700">
               Número
             </label>
             <input
@@ -310,10 +310,7 @@ export default function LockersPage() {
             )}
           </div>
           <div>
-            <label
-              htmlFor="building"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <label htmlFor="building" className="block text-sm font-medium text-gray-700">
               Prédio
             </label>
             <select
@@ -335,10 +332,7 @@ export default function LockersPage() {
             )}
           </div>
           <div>
-            <label
-              htmlFor="courseId"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <label htmlFor="courseId" className="block text-sm font-medium text-gray-700">
               Curso
             </label>
             <select
@@ -362,7 +356,7 @@ export default function LockersPage() {
         </form>
       </Modal>
 
-      {/* --- MODIFICAÇÃO AQUI: Modal de Aluguel com campos de data --- */}
+      {/* Modal de Aluguel */}
       <Modal
         isOpen={isRentalModalOpen}
         onClose={closeModals}
@@ -382,9 +376,7 @@ export default function LockersPage() {
               disabled={createRentalMutation.isPending}
               className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
             >
-              {createRentalMutation.isPending
-                ? "Alugando..."
-                : "Confirmar Aluguel"}
+              {createRentalMutation.isPending ? "Alugando..." : "Confirmar Aluguel"}
             </button>
           </>
         }
@@ -395,10 +387,7 @@ export default function LockersPage() {
           className="space-y-4"
         >
           <div>
-            <label
-              htmlFor="studentId"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <label htmlFor="studentId" className="block text-sm font-medium text-gray-700">
               Aluno
             </label>
             <select
@@ -426,10 +415,7 @@ export default function LockersPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label
-                htmlFor="dataInicio"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="dataInicio" className="block text-sm font-medium text-gray-700">
                 Data de Início
               </label>
               <input
@@ -445,10 +431,7 @@ export default function LockersPage() {
               )}
             </div>
             <div>
-              <label
-                htmlFor="dataPrevista"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="dataPrevista" className="block text-sm font-medium text-gray-700">
                 Devolução Prevista
               </label>
               <input
