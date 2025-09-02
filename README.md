@@ -1,34 +1,55 @@
-# 🗄️ CIMOL LockerHub
+# **Cimol LockerHub**
 
-**CIMOL LockerHub** é um sistema de gerenciamento de locação de armários escolares desenvolvido para facilitar o controle de armários, locações, devoluções e gestão de alunos, com foco em usabilidade, segurança e automação.
+## **Descrição**
 
----
+O **Cimol LockerHub** é um sistema de gerenciamento de armários, onde usuários podem alugar, devolver e controlar o status dos armários disponíveis. O sistema é dividido em dois módulos principais: a interface de usuário (frontend) e a API (backend). A plataforma utiliza uma arquitetura moderna e escalável com **Node.js**, **Express**, **MongoDB**, **React**, e **Docker**.
 
-## 📋 Funcionalidades
+## **Funcionalidades**
 
-- Cadastro e autenticação de usuários (admin e operadores)
-- Cadastro de alunos/clientes
-- Cadastro e controle de armários
-- Locação e devolução de armários
-- Controle de prazos e identificação de atrasos
-- Dashboard com:
-  - Armários disponíveis
-  - Armários locados
-  - Locações em atraso
-- Histórico completo de movimentações
-- API RESTful segura com autenticação JWT
-- Suporte a **Docker**
-- Pronto para testes automatizados
-- Integração com **GitFlow** e pipelines de CI/CD
+- **Cadastro de Usuários**: Criação de contas de clientes, com autenticação por e-mail.
+- **Cadastro e Gestão de Armários**: Permite que os armários sejam cadastrados no sistema, com informações de disponibilidade e localização.
+- **Locação e Devolução de Armários**: Controle do status dos armários, incluindo locação e devolução.
+- **Dashboard de Administrador**: Visão geral de armários locados, devolvidos e livres.
+- **Controle de Histórico**: Exibição de um histórico de locações e devoluções.
+- **Segurança e Autenticação**: Proteção de rotas com autenticação JWT e segurança de dados.
 
----
+## **Tecnologias Utilizadas**
 
-## 🧱 Tecnologias Utilizadas
+- **Frontend**: React, Bootstrap, CSS
+- **Backend**: Node.js, Express, MongoDB
+- **Autenticação**: JWT
+- **DevOps**: Docker
 
-- **Node.js** + **Express**
-- **MongoDB** + **Mongoose**
-- **JWT** para autenticação
-- **Docker** e **Docker Compose**
-- **Swagger** para documentação da API
-- **GitFlow** para controle de versões
-- **Figma** para mockups e prototipação
+# Passos para Rodar Localmente
+
+## Clonar o Repositório
+
+Faça o clone do repositório para sua máquina local:
+
+```bash
+git clone https://github.com/eduarda-guimaraes/CIMOL-LockerHub
+```
+
+## Instalar Dependências
+
+Navegue até o diretório application e instale as dependências do projeto frontend:
+
+```bash
+npm install
+cd application
+npm install
+```
+
+## Rodar o Projeto
+
+Para rodar o sistema em ambiente de desenvolvimento, use o comando abaixo dentro do diretório application:
+
+```bash
+npm run dev
+```
+
+## Acessar a Aplicação
+
+Abra o navegador e vá até http://localhost:3000 para acessar a aplicação.
+
+
