@@ -1,11 +1,11 @@
 // application/src/app/(main)/dashboard/lockers/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Edit, Trash2, KeyRound, Undo2 } from "lucide-react";
+import { Plus, Edit, Trash2, KeyRound, Undo2, Search } from "lucide-react";
 import { fetchCourses } from "@/services/course.service";
 import { fetchStudents } from "@/services/student.service";
 import {
@@ -20,11 +20,25 @@ import {
   rentalFormSchema,
   RentalFormData,
   PopulatedLocker,
+  LockerFilters, // Importando o tipo de filtro
 } from "@/services/locker.service";
 import Modal from "@/components/ui/Modal";
 import { ICourse, IStudent } from "@/models";
 
-// --- MODIFICAÇÃO AQUI: Função utilitária para formatar a data para o input ---
+// Hook customizado para Debounce
+function useDebounce(value: string, delay: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 const getTodayDateString = () => {
   const today = new Date();
   const year = today.getFullYear();
@@ -41,16 +55,35 @@ export default function LockersPage() {
     null
   );
 
+  // --- ESTADO PARA OS FILTROS ---
+  const [filters, setFilters] = useState<LockerFilters>({
+    numero: "",
+    status: "",
+    building: "",
+    courseId: "",
+  });
+  const debouncedNumero = useDebounce(filters.numero || "", 500);
+
+  const activeFilters = { ...filters, numero: debouncedNumero };
+
   const { data: lockers, isLoading: isLoadingLockers } = useQuery<
     PopulatedLocker[]
-  >({ queryKey: ["lockers"], queryFn: fetchLockers });
+  >({
+    // A queryKey agora inclui os filtros. O React Query refaz a busca quando eles mudam.
+    queryKey: ["lockers", activeFilters],
+    queryFn: () => fetchLockers(activeFilters),
+  });
+
   const { data: courses, isLoading: isLoadingCourses } = useQuery<ICourse[]>({
     queryKey: ["courses"],
     queryFn: fetchCourses,
   });
-  const { data: students, isLoading: isLoadingStudents } = useQuery<IStudent[]>(
-    { queryKey: ["students"], queryFn: fetchStudents }
-  );
+  const { data: students, isLoading: isLoadingStudents } = useQuery<
+    IStudent[]
+  >({
+    queryKey: ["students"],
+    queryFn: fetchStudents,
+  });
 
   const lockerForm = useForm<LockerFormData>({
     resolver: zodResolver(lockerFormSchema),
@@ -59,8 +92,15 @@ export default function LockersPage() {
     resolver: zodResolver(rentalFormSchema),
   });
 
-  const handleMutationSuccess = () => {
+  const invalidateDashboard = () => {
     queryClient.invalidateQueries({ queryKey: ["lockers"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+    queryClient.invalidateQueries({ queryKey: ["overdueRentals"] });
+    queryClient.invalidateQueries({ queryKey: ["lockersGrid"] });
+  };
+
+  const handleMutationSuccess = () => {
+    invalidateDashboard();
     closeModals();
   };
 
@@ -77,7 +117,6 @@ export default function LockersPage() {
     mutationFn: deleteLocker,
     onSuccess: handleMutationSuccess,
   });
-  // --- MODIFICAÇÃO AQUI: Atualizando a assinatura da mutação ---
   const createRentalMutation = useMutation({
     mutationFn: (vars: { lockerId: string; rentalData: RentalFormData }) =>
       createRental(vars.lockerId, vars.rentalData),
@@ -90,21 +129,20 @@ export default function LockersPage() {
 
   const openLockerModal = (locker: PopulatedLocker | null) => {
     setSelectedLocker(locker);
-    if (locker) {
-      lockerForm.reset({
-        numero: locker.numero,
-        building: locker.building,
-        courseId: locker.courseId._id,
-      });
-    } else {
-      lockerForm.reset({ numero: "", building: undefined, courseId: "" });
-    }
+    lockerForm.reset(
+      locker
+        ? {
+            numero: locker.numero,
+            building: locker.building,
+            courseId: locker.courseId._id,
+          }
+        : { numero: "", building: undefined, courseId: "" }
+    );
     setIsLockerModalOpen(true);
   };
 
   const openRentalModal = (locker: PopulatedLocker) => {
     setSelectedLocker(locker);
-    // --- MODIFICAÇÃO AQUI: Resetando o formulário com a data de hoje ---
     rentalForm.reset({
       studentId: "",
       dataInicio: getTodayDateString(),
@@ -127,7 +165,6 @@ export default function LockersPage() {
     }
   };
 
-  // --- MODIFICAÇÃO AQUI: Atualizando a lógica de submissão do aluguel ---
   const onRentalSubmit = (data: RentalFormData) => {
     if (selectedLocker) {
       createRentalMutation.mutate({
@@ -139,15 +176,18 @@ export default function LockersPage() {
 
   const handleReturn = (rentalId: string) => {
     if (
-      window.confirm(
-        "Tem certeza que deseja registrar a devolução deste armário?"
-      )
+      window.confirm("Tem certeza que deseja registrar a devolução deste armário?")
     ) {
       returnRentalMutation.mutate(rentalId);
     }
   };
 
-  const isLoading = isLoadingLockers || isLoadingCourses;
+  const handleFilterChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
 
   return (
     <div>
@@ -163,12 +203,109 @@ export default function LockersPage() {
         </button>
       </div>
 
-      {isLoading ? (
-        <div>Carregando...</div>
+      {/* --- INÍCIO DO FORMULÁRIO DE FILTRO --- */}
+      <div className="mb-6 p-4 bg-white shadow rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {/* Filtro por Número */}
+          <div className="md:col-span-2">
+            <label
+              htmlFor="numero"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Buscar por Número
+            </label>
+            <div className="relative mt-1">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                name="numero"
+                id="numero"
+                value={filters.numero}
+                onChange={handleFilterChange}
+                className="block w-full rounded-md border-gray-300 pl-10 shadow-sm text-black"
+                placeholder="Ex: A-101"
+              />
+            </div>
+          </div>
+          {/* Filtro por Status */}
+          <div>
+            <label
+              htmlFor="status"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Status
+            </label>
+            <select
+              id="status"
+              name="status"
+              value={filters.status}
+              onChange={handleFilterChange}
+              className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-black"
+            >
+              <option value="">Todos</option>
+              <option value="available">Disponível</option>
+              <option value="occupied">Ocupado</option>
+              <option value="overdue">Atrasado</option>
+            </select>
+          </div>
+          {/* Filtro por Prédio */}
+          <div>
+            <label
+              htmlFor="building"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Prédio
+            </label>
+            <select
+              id="building"
+              name="building"
+              value={filters.building}
+              onChange={handleFilterChange}
+              className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-black"
+            >
+              <option value="">Todos</option>
+              <option value="A">Prédio A</option>
+              <option value="B">Prédio B</option>
+              <option value="C">Prédio C</option>
+              <option value="D">Prédio D</option>
+              <option value="E">Prédio E</option>
+            </select>
+          </div>
+          {/* Filtro por Curso */}
+          <div>
+            <label
+              htmlFor="courseId"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Curso
+            </label>
+            <select
+              id="courseId"
+              name="courseId"
+              value={filters.courseId}
+              onChange={handleFilterChange}
+              className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm text-black"
+              disabled={isLoadingCourses}
+            >
+              <option value="">Todos</option>
+              {courses?.map((course) => (
+                <option key={course._id} value={course._id}>
+                  {course.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+      {/* --- FIM DO FORMULÁRIO DE FILTRO --- */}
+
+      {isLoadingLockers ? (
+        <div>Carregando armários...</div>
       ) : (
         <div className="bg-white shadow rounded-lg overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            {/* ... o código da tabela permanece o mesmo ... */}
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -205,6 +342,8 @@ export default function LockersPage() {
                       className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         locker.status === "available"
                           ? "bg-green-100 text-green-800"
+                          : locker.status === "occupied"
+                          ? "bg-blue-100 text-blue-800"
                           : "bg-red-100 text-red-800"
                       }`}
                     >
@@ -256,7 +395,7 @@ export default function LockersPage() {
         </div>
       )}
 
-      {/* ... Modal de CRUD de Armário permanece o mesmo ... */}
+      {/* Modal de Armário (sem alterações) */}
       <Modal
         isOpen={isLockerModalOpen}
         onClose={closeModals}
@@ -362,7 +501,7 @@ export default function LockersPage() {
         </form>
       </Modal>
 
-      {/* --- MODIFICAÇÃO AQUI: Modal de Aluguel com campos de data --- */}
+      {/* Modal de Aluguel (sem alterações) */}
       <Modal
         isOpen={isRentalModalOpen}
         onClose={closeModals}
@@ -423,7 +562,6 @@ export default function LockersPage() {
               </p>
             )}
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label

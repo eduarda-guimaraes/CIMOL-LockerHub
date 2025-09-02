@@ -1,9 +1,9 @@
 // application/src/services/locker.service.ts
 import api from "@/lib/api";
-import { ILocker, ICourse, IRental, IStudent } from "@/models"; // Importe IStudent
+import { ILocker, ICourse, IRental, IStudent } from "@/models";
 import { z } from "zod";
 
-// ... (schemas do Zod permanecem os mesmos) ...
+// --- Schemas e Tipos para Formulários (sem alterações) ---
 export const lockerFormSchema = z.object({
   numero: z.string().min(1, { message: "O número é obrigatório." }),
   building: z.enum(["A", "B", "C", "D", "E"]),
@@ -22,43 +22,107 @@ export const rentalFormSchema = z.object({
 });
 export type RentalFormData = z.infer<typeof rentalFormSchema>;
 
-
-// --- CORREÇÃO AQUI ---
-// 1. Criamos um tipo para o aluguel POPULADO, onde studentId é garantidamente um IStudent
-export type PopulatedRental = Omit<IRental, 'studentId'> & {
-  studentId: IStudent;
-};
-
-// 2. Atualizamos PopulatedLocker para usar o novo tipo PopulatedRental
-export type PopulatedLocker = Omit<ILocker, "courseId" | "activeRental"> & {
+// --- Tipos de Dados da API (sem alterações) ---
+export type PopulatedLocker = Omit<ILocker, "courseId"> & {
   courseId: ICourse;
-  activeRental?: PopulatedRental; // Agora usa o tipo mais específico
+  activeRental?: IRental & {
+    studentId: IStudent;
+  };
 };
-// --- FIM DA CORREÇÃO ---
 
+export interface LockerFilters {
+  status?: string;
+  building?: string;
+  courseId?: string;
+  numero?: string;
+}
 
-export const fetchLockers = async (): Promise<PopulatedLocker[]> =>
-  (await api.get<PopulatedLocker[]>("/api/lockers")).data;
-export const createLocker = async (data: LockerFormData) =>
-  (await api.post("/api/lockers", data)).data;
-export const updateLocker = async (id: string, data: LockerFormData) =>
-  (await api.put(`/api/lockers/${id}`, data)).data;
-export const deleteLocker = async (id: string) =>
-  (await api.delete(`/api/lockers/${id}`)).data;
+// --- Funções de Serviço (CORRIGIDAS) ---
 
+/**
+ * Busca armários com base nos filtros fornecidos.
+ */
+export const fetchLockers = async (
+  filters: LockerFilters = {}
+): Promise<PopulatedLocker[]> => {
+  const params = new URLSearchParams();
+  if (filters.status) params.append("status", filters.status);
+  if (filters.building) params.append("building", filters.building);
+  if (filters.courseId) params.append("courseId", filters.courseId);
+  if (filters.numero) params.append("numero", filters.numero);
+
+  // CORREÇÃO AQUI: Especificamos o tipo de retorno esperado no .get()
+  const { data } = await api.get<PopulatedLocker[]>(
+    `/api/lockers?${params.toString()}`
+  );
+  return data;
+};
+
+/**
+ * Cria um novo armário.
+ */
+export const createLocker = async (data: LockerFormData): Promise<ILocker> => {
+  // CORREÇÃO AQUI: Especificamos o tipo de retorno esperado no .post()
+  const { data: newLocker } = await api.post<ILocker>("/api/lockers", data);
+  return newLocker;
+};
+
+/**
+ * Atualiza um armário existente.
+ */
+export const updateLocker = async (
+  id: string,
+  data: LockerFormData
+): Promise<ILocker> => {
+  // CORREÇÃO AQUI: Especificamos o tipo de retorno esperado no .put()
+  const { data: updatedLocker } = await api.put<ILocker>(
+    `/api/lockers/${id}`,
+    data
+  );
+  return updatedLocker;
+};
+
+/**
+ * Deleta um armário.
+ */
+export const deleteLocker = async (
+  id: string
+): Promise<{ message: string }> => {
+  // CORREÇÃO AQUI: Especificamos o tipo de retorno e o retornamos
+  const { data } = await api.delete<{ message: string }>(`/api/lockers/${id}`);
+  return data;
+};
+
+/**
+ * Cria um novo aluguel para um armário.
+ */
 export const createRental = async (
   lockerId: string,
   rentalData: RentalFormData
-) => {
+): Promise<{ message: string; rental: IRental }> => {
   const payload = {
     lockerId,
     studentId: rentalData.studentId,
     dataInicio: rentalData.dataInicio,
     dataPrevista: rentalData.dataPrevista,
   };
-  return (await api.post("/api/rentals", payload)).data;
+  // CORREÇÃO AQUI: Especificamos o tipo de retorno
+  const { data } = await api.post<{ message: string; rental: IRental }>(
+    "/api/rentals",
+    payload
+  );
+  return data;
 };
 
-export const returnRental = async (rentalId: string) => {
-  return (await api.patch(`/api/rentals/${rentalId}`)).data;
+/**
+ * Registra a devolução de um aluguel.
+ */
+export const returnRental = async (
+  rentalId: string
+): Promise<{ message: string }> => {
+  // CORREÇÃO AQUI: Especificamos o tipo de retorno
+  const { data } = await api.patch<{ message: string }>(
+    `/api/rentals/${rentalId}`
+  );
+  return data;
 };

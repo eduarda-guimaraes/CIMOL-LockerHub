@@ -72,7 +72,7 @@ export default function CadastroPage() {
       {/* Esquerda */}
       <section className="w-1/2 bg-blue-900 text-white flex flex-col items-start justify-center p-10">
         <h1 className={`text-4xl font-bold mb-4 ${poppins.className}`}>
-          Bem vindo!
+          Bem-vindo!
         </h1>
         <p className="max-w-md text-left px-2">
           Vamos começar esta jornada mais organizada? Preencha com suas
