@@ -2,26 +2,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Locker from "@/models/Locker.model";
+import mongoose from "mongoose"; // Importar mongoose para validar ObjectId
 import { z } from "zod";
 
 const lockerSchema = z.object({
   numero: z.string().min(1, "O número é obrigatório."),
   building: z.enum(["A", "B", "C", "D", "E"]),
-  courseId: z.string().refine((val) => /^[0-9a-fA-F]{24}$/.test(val), {
+  courseId: z.string().refine((val) => mongoose.Types.ObjectId.isValid(val), {
     message: "ID do curso inválido.",
   }),
 });
 
-// GET: Listar todos os armários
-export async function GET() {
+// GET: Listar todos os armários com suporte a filtros
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
+    // Extrai os parâmetros de filtro da URL
+    const { searchParams } = req.nextUrl;
+    const status = searchParams.get("status");
+    const building = searchParams.get("building");
+    const courseId = searchParams.get("courseId");
+    const numero = searchParams.get("numero");
+
+    // Constrói o objeto de filtro para a query do MongoDB
+    const matchStage: any = {};
+    if (status) matchStage.status = status;
+    if (building) matchStage.building = building;
+    if (courseId && mongoose.Types.ObjectId.isValid(courseId)) {
+      matchStage.courseId = new mongoose.Types.ObjectId(courseId);
+    }
+    if (numero) matchStage.numero = { $regex: numero, $options: "i" }; // Busca case-insensitive
+
     const lockers = await Locker.aggregate([
-      // Passo 1: Fazer um "join" com a coleção de aluguéis
+      // Adicionamos o estágio de $match no início do pipeline
+      { $match: matchStage },
       {
         $lookup: {
-          from: "rentals", // A coleção de aluguéis
+          from: "rentals",
           let: { locker_id: "$_id" },
           pipeline: [
             {
@@ -29,23 +47,21 @@ export async function GET() {
                 $expr: {
                   $and: [
                     { $eq: ["$lockerId", "$$locker_id"] },
-                    { $eq: ["$isActive", true] }, // Apenas aluguéis ativos
+                    { $eq: ["$isActive", true] },
                   ],
                 },
               },
             },
           ],
-          as: "activeRental", // O resultado do join
+          as: "activeRental",
         },
       },
-      // Passo 2: Desconstruir o array (haverá 0 ou 1 item)
       {
         $unwind: {
           path: "$activeRental",
-          preserveNullAndEmptyArrays: true, // Mantém armários sem aluguel ativo
+          preserveNullAndEmptyArrays: true,
         },
       },
-      // Passo 3: Fazer um "join" com a coleção de cursos
       {
         $lookup: {
           from: "courses",
@@ -54,14 +70,12 @@ export async function GET() {
           as: "courseDetails",
         },
       },
-      // Passo 4: Desconstruir o array de curso
       {
         $unwind: {
           path: "$courseDetails",
           preserveNullAndEmptyArrays: true,
         },
       },
-      // Passo 5: Projetar o formato final do objeto
       {
         $project: {
           _id: 1,
@@ -70,11 +84,10 @@ export async function GET() {
           building: 1,
           createdAt: 1,
           updatedAt: 1,
-          courseId: "$courseDetails", // Substitui o ID pelo objeto populado
-          activeRental: 1, // Inclui o objeto de aluguel ativo
+          courseId: "$courseDetails",
+          activeRental: 1,
         },
       },
-      // Passo 6: Ordenar
       { $sort: { numero: 1 } },
     ]);
 
