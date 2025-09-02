@@ -1,7 +1,4 @@
 {
-  "scripts": {
-    "install": "npm install && cd application && npm install"
-  },
   "dependencies": {
     "autoprefixer": "^10.4.21",
     "nodemailer": "^7.0.5",
