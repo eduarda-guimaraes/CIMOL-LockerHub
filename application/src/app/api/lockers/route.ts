@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const numero = searchParams.get("numero");
 
     // Constrói o objeto de filtro para a query do MongoDB
-    const matchStage: any = {};
+    const matchStage: Record<string, unknown> = {};
     if (status) matchStage.status = status;
     if (building) matchStage.building = building;
     if (courseId && mongoose.Types.ObjectId.isValid(courseId)) {
